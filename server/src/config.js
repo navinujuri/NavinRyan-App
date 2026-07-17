@@ -25,4 +25,12 @@ export const config = {
 
   // Path to the built client (served in production single-process mode).
   clientDist: path.resolve(__dirname, '..', '..', 'client', 'dist'),
+
+  // Optional HTTP Basic Auth gate. When both are set (e.g. in production), every
+  // request except the health check must send matching credentials. Unset in
+  // local dev, so the gate is off.
+  auth: {
+    user: process.env.AUTH_USER || '',
+    pass: process.env.AUTH_PASS || '',
+  },
 };

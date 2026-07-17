@@ -20,6 +20,11 @@ services:
         value: mongo
       - key: MONGO_DB_NAME
         value: rr_physique_tracker
-      # Secret — NOT stored in the repo. Render prompts for it on first deploy.
+      # Secrets — NOT stored in the repo. Render prompts for these on first deploy.
       - key: MONGO_URI
+        sync: false
+      # HTTP Basic Auth gate (protects the whole app). Leave both unset to disable.
+      - key: AUTH_USER
+        value: navin
+      - key: AUTH_PASS
         sync: false

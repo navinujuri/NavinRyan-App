@@ -74,18 +74,31 @@ password since the cluster is now reachable from anywhere.
 **2. Render — deploy the blueprint.**
 [render.com](https://render.com) → *New* → *Blueprint* → connect the GitHub repo
 (`navinujuri/NavinRyan-App`). Render reads `render.yaml` and provisions a **Free**
-web service. When prompted, paste your Atlas connection string as **`MONGO_URI`**
-(it is a secret — never committed). Click *Apply*.
+web service. When prompted, paste the secrets (never committed):
+- **`MONGO_URI`** — your Atlas connection string.
+- **`AUTH_PASS`** — a password for the login gate (username defaults to `navin`
+  via `AUTH_USER`).
+
+Click *Apply*.
 
 > Prefer manual setup? *New → Web Service*, then:
 > - Build command: `npm run render-build`
 > - Start command: `npm --prefix server start`
-> - Env vars: `STORAGE_DRIVER=mongo`, `MONGO_DB_NAME=rr_physique_tracker`, `MONGO_URI=<your Atlas URI>`
+> - Env vars: `STORAGE_DRIVER=mongo`, `MONGO_DB_NAME=rr_physique_tracker`,
+>   `MONGO_URI=<your Atlas URI>`, `AUTH_USER=navin`, `AUTH_PASS=<your password>`
+
+### Access protection (HTTP Basic Auth)
+
+Because the app has no in-app login, the deployed URL is guarded by **HTTP Basic
+Auth**. Set `AUTH_USER` + `AUTH_PASS` (both) and the browser asks for that
+username/password before anything loads — API and app alike. `/api/health` stays
+open so the platform health check still passes. Leave them unset locally to keep
+dev open.
 
 **3. Use it on your phone.**
-Open the `https://<name>.onrender.com` URL in your phone browser and
-**Add to Home Screen** for an app-like icon. Your data lives in Atlas, so it's
-the same on every device.
+Open the `https://<name>.onrender.com` URL, **log in** with your `AUTH_USER` /
+`AUTH_PASS`, then **Add to Home Screen** for an app-like icon. Your data lives in
+Atlas, so it's the same on every device.
 
 > ℹ️ Render's free instance sleeps after ~15 min idle, so the *first* request
 > after a break cold-starts in ~30–50s. Fine for daily logging; upgrade the
