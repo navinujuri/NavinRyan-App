@@ -11,17 +11,24 @@ let storePromise = null;
  */
 export function getStore() {
   if (!storePromise) {
-    let store;
-    switch (config.storageDriver) {
-      case 'mongo':
-        store = new MongoStore(config);
-        break;
-      case 'json':
-      default:
-        store = new JsonStore(config.jsonDbPath);
-        break;
-    }
-    storePromise = store.init(buildSeed);
+    storePromise = (async () => {
+      let store;
+      switch (config.storageDriver) {
+        case 'mongo':
+          store = new MongoStore(config);
+          break;
+        case 'json':
+        default:
+          store = new JsonStore(config.jsonDbPath);
+          break;
+      }
+      return store.init(buildSeed);
+    })().catch((err) => {
+      // Don't cache the failure — let the next call (a retry or a request) try
+      // again once the DB becomes reachable (e.g. after fixing the allowlist).
+      storePromise = null;
+      throw err;
+    });
   }
   return storePromise;
 }
