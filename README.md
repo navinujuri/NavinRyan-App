@@ -58,6 +58,42 @@ npm start          # builds the client, then serves it from Express on :4000
 Express serves the built SPA from `client/dist` and the API from `/api` on the
 same port — open **http://localhost:4000**.
 
+---
+
+## Deploy for free (phone-friendly)
+
+The whole app runs as **one Node web service** (Express serves the API *and* the
+built SPA) backed by **MongoDB Atlas**, so it deploys cleanly to a single free
+host. A ready-to-use **[`render.yaml`](render.yaml)** blueprint is included.
+
+**1. MongoDB Atlas — allow the host to connect.**
+Atlas → *Network Access* → *Add IP Address* → **Allow access from anywhere
+(`0.0.0.0/0`)**. (Free hosts don't have fixed outbound IPs.) Keep a strong DB
+password since the cluster is now reachable from anywhere.
+
+**2. Render — deploy the blueprint.**
+[render.com](https://render.com) → *New* → *Blueprint* → connect the GitHub repo
+(`navinujuri/NavinRyan-App`). Render reads `render.yaml` and provisions a **Free**
+web service. When prompted, paste your Atlas connection string as **`MONGO_URI`**
+(it is a secret — never committed). Click *Apply*.
+
+> Prefer manual setup? *New → Web Service*, then:
+> - Build command: `npm run render-build`
+> - Start command: `npm --prefix server start`
+> - Env vars: `STORAGE_DRIVER=mongo`, `MONGO_DB_NAME=rr_physique_tracker`, `MONGO_URI=<your Atlas URI>`
+
+**3. Use it on your phone.**
+Open the `https://<name>.onrender.com` URL in your phone browser and
+**Add to Home Screen** for an app-like icon. Your data lives in Atlas, so it's
+the same on every device.
+
+> ℹ️ Render's free instance sleeps after ~15 min idle, so the *first* request
+> after a break cold-starts in ~30–50s. Fine for daily logging; upgrade the
+> instance (or use a keep-alive ping) if you want it always-on.
+
+Other free options with the same single-service model: **Fly.io**, **Koyeb**,
+**Railway** (trial credits). The build/start commands above apply to all of them.
+
 ### Other scripts
 
 | Command | What it does |

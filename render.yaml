@@ -1,0 +1,25 @@
+# Render Blueprint — deploys the whole app (Express API + built React SPA) as a
+# single free web service, backed by your MongoDB Atlas cluster.
+#
+# Deploy: render.com → New → Blueprint → connect the GitHub repo → Render reads
+# this file → paste your MONGO_URI when prompted → Create. See README "Deploy".
+services:
+  - type: web
+    name: navinryan-app
+    runtime: node
+    plan: free
+    region: singapore        # closest free region to India; change if you prefer
+    branch: main
+    buildCommand: npm run render-build
+    startCommand: npm --prefix server start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22.15.0"
+      - key: STORAGE_DRIVER
+        value: mongo
+      - key: MONGO_DB_NAME
+        value: rr_physique_tracker
+      # Secret — NOT stored in the repo. Render prompts for it on first deploy.
+      - key: MONGO_URI
+        sync: false

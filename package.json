@@ -5,9 +5,10 @@
   "description": "Personal 16-week Ryan Reynolds aesthetic transformation tracker (Navin - Phase 1)",
   "type": "module",
   "scripts": {
-    "setup": "npm install && npm --prefix server install && npm --prefix client install",
+    "setup": "npm install && (cd server && npm install) && (cd client && npm install)",
     "dev": "concurrently -n SERVER,CLIENT -c magenta,cyan \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
     "build": "npm --prefix client run build",
+    "render-build": "cd server && npm install && cd ../client && npm install --include=dev && npm run build",
     "start": "npm run build && npm --prefix server start",
     "clean": "node --input-type=module -e \"import('node:fs').then(m=>m.rmSync('server/data/db.json',{force:true}))\""
   },
