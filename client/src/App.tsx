@@ -2,8 +2,9 @@ import { useMemo } from 'react';
 import { Layout } from './components/layout/Layout';
 import { useHashRoute } from './lib/useHashRoute';
 import { useData } from './state/DataContext';
+import { useAuth } from './state/AuthContext';
 import { programState, ryanReynoldsProgress } from './lib/calculations';
-import { IconFlame, IconRefresh } from './components/ui/icons';
+import { IconFlame, IconLogout, IconRefresh } from './components/ui/icons';
 import { Pill } from './components/ui/primitives';
 
 import { Dashboard } from './pages/Dashboard';
@@ -63,6 +64,7 @@ const PAGES: Record<RouteId, () => JSX.Element | null> = {
 export function App() {
   const [route, navigate] = useHashRoute();
   const data = useData();
+  const { logout, authRequired } = useAuth();
 
   const header = useMemo(() => {
     if (!data.config || !data.profile) return null;
@@ -103,6 +105,15 @@ export function App() {
             >
               <IconRefresh width={15} height={15} />
             </button>
+            {authRequired && (
+              <button
+                onClick={logout}
+                title="Sign out"
+                className="rounded-lg border border-hair bg-ink-800 p-2 text-fg-faint transition hover:border-bad/40 hover:text-bad"
+              >
+                <IconLogout width={15} height={15} />
+              </button>
+            )}
           </div>
         )
       }

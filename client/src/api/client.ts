@@ -9,12 +9,30 @@ import type {
 } from '../types';
 
 const API = '/api';
+const TOKEN_KEY = 'rrpt_token';
+
+export const tokenStore = {
+  get: () => localStorage.getItem(TOKEN_KEY),
+  set: (t: string) => localStorage.setItem(TOKEN_KEY, t),
+  clear: () => localStorage.removeItem(TOKEN_KEY),
+};
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = tokenStore.get();
   const res = await fetch(`${API}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options?.headers || {}),
+    },
   });
+  if (res.status === 401) {
+    // Token missing/expired/invalid → drop it and return to the login screen.
+    tokenStore.clear();
+    window.location.reload();
+    throw new Error('401 Unauthorized');
+  }
   if (!res.ok) {
     const msg = await res.text().catch(() => res.statusText);
     throw new Error(`${res.status} ${msg}`);
@@ -23,7 +41,28 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export interface HealthInfo {
+  ok: boolean;
+  authRequired: boolean;
+}
+
 export const api = {
+  // Public — used before login to decide whether to show the login screen.
+  health: () => request<HealthInfo>('/health'),
+
+  // Public — validates credentials and returns a bearer token. Uses its own
+  // fetch so a wrong password surfaces an inline error instead of reloading.
+  login: async (username: string, password: string) => {
+    const res = await fetch(`${API}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    if (res.status === 401) throw new Error('Invalid username or password.');
+    if (!res.ok) throw new Error(`Login failed (${res.status})`);
+    return res.json() as Promise<{ token: string; user: string }>;
+  },
+
   bootstrap: () => request<Bootstrap>('/bootstrap'),
 
   updateProfile: (patch: Partial<Profile>) =>

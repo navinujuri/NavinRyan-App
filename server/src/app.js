@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import fs from 'node:fs';
 import { config } from './config.js';
-import { basicAuth } from './middleware/basicAuth.js';
+import { requireAuth, loginHandler } from './middleware/auth.js';
 import { metaRouter } from './routes/meta.js';
 import { profileRouter } from './routes/profile.js';
 import {
@@ -18,10 +18,12 @@ export function createApp() {
   const app = express();
 
   app.use(cors());
-  // Gate the whole app (API + SPA) behind HTTP Basic Auth when configured.
-  app.use(basicAuth);
   // Progress photos are stored as base64 data URLs → allow a generous body size.
   app.use(express.json({ limit: '25mb' }));
+
+  // Token gate for the data API (SPA shell + /api/login + /api/health stay open).
+  app.use(requireAuth);
+  app.post('/api/login', loginHandler);
 
   // ── API ───────────────────────────────────────────────────────────────────
   app.use('/api', metaRouter);

@@ -87,13 +87,16 @@ Click *Apply*.
 > - Env vars: `STORAGE_DRIVER=mongo`, `MONGO_DB_NAME=rr_physique_tracker`,
 >   `MONGO_URI=<your Atlas URI>`, `AUTH_USER=navin`, `AUTH_PASS=<your password>`
 
-### Access protection (HTTP Basic Auth)
+### Access protection (in-app login)
 
-Because the app has no in-app login, the deployed URL is guarded by **HTTP Basic
-Auth**. Set `AUTH_USER` + `AUTH_PASS` (both) and the browser asks for that
-username/password before anything loads — API and app alike. `/api/health` stays
-open so the platform health check still passes. Leave them unset locally to keep
-dev open.
+The app shows a **login page** and the data API requires a bearer token. Set
+`AUTH_USER` + `AUTH_PASS` (both) and users must sign in on the styled login
+screen before any data loads. The token is derived from the credentials
+(stateless — no session store), stored client-side, and sent as
+`Authorization: Bearer …`; changing the password invalidates old tokens.
+`/api/login` and `/api/health` stay open (so the login screen and platform
+health check work); every other API route needs the token. Leave both unset
+locally to keep dev open (no login screen).
 
 **3. Use it on your phone.**
 Open the `https://<name>.onrender.com` URL, **log in** with your `AUTH_USER` /

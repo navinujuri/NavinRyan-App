@@ -3,6 +3,7 @@ import { getStore } from '../storage/index.js';
 import { EXERCISES, PROGRAM, SCHEDULE, TRAINING_DAYS } from '../domain/exercises.js';
 import { MUSCLE_GROUPS, PHYSIQUE_MUSCLES, SECONDARY_VOLUME_WEIGHT } from '../domain/muscles.js';
 import { buildSeed } from '../data/seed.js';
+import { authEnabled } from '../middleware/auth.js';
 
 export const metaRouter = express.Router();
 
@@ -80,4 +81,6 @@ metaRouter.post('/reset', async (_req, res, next) => {
   }
 });
 
-metaRouter.get('/health', (_req, res) => res.json({ ok: true, service: 'rrpt-server' }));
+metaRouter.get('/health', (_req, res) =>
+  res.json({ ok: true, service: 'rrpt-server', authRequired: authEnabled() }),
+);
