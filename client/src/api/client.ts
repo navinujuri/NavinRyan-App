@@ -68,6 +68,20 @@ export const api = {
     authPost('/auth/login', { email, password }),
   me: () => request<{ user: AuthUser }>('/auth/me'),
 
+  // Change password — own fetch so a wrong current password shows inline
+  // (not the generic 401 → reload).
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    const res = await fetch(`${API}/auth/password`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(tokenStore.get() ? { Authorization: `Bearer ${tokenStore.get()}` } : {}) },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
+    return data as { ok: boolean };
+  },
+  deleteAccount: () => request<void>('/auth/account', { method: 'DELETE' }),
+
   bootstrap: () => request<Bootstrap>('/bootstrap'),
 
   updateProfile: (patch: Partial<Profile>) =>

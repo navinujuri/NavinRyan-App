@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Layout } from './components/layout/Layout';
 import { useHashRoute } from './lib/useHashRoute';
 import { useData } from './state/DataContext';
@@ -6,6 +6,7 @@ import { useAuth } from './state/AuthContext';
 import { programState, ryanReynoldsProgress } from './lib/calculations';
 import { IconFlame, IconLogout, IconRefresh } from './components/ui/icons';
 import { Pill } from './components/ui/primitives';
+import { AccountModal } from './components/AccountModal';
 
 import { Dashboard } from './pages/Dashboard';
 import { Workouts } from './pages/Workouts';
@@ -67,6 +68,7 @@ export function App() {
   const [route, navigate] = useHashRoute();
   const data = useData();
   const { logout, user } = useAuth();
+  const [accountOpen, setAccountOpen] = useState(false);
 
   const header = useMemo(() => {
     if (!data.config || !data.profile) return null;
@@ -100,7 +102,15 @@ export function App() {
               <IconFlame width={13} height={13} />
               RR Progress {Math.round(header.rr.total)}%
             </Pill>
-            {user && <Pill tone="default">{user.displayName}</Pill>}
+            {user && (
+              <button
+                onClick={() => setAccountOpen(true)}
+                title="Account settings"
+                className="rounded-full border border-hair bg-ink-800 px-2.5 py-1 text-xs font-medium text-fg-muted transition hover:border-hair2 hover:text-fg"
+              >
+                {user.displayName}
+              </button>
+            )}
             <button
               onClick={logout}
               title="Sign out"
@@ -113,6 +123,7 @@ export function App() {
       }
     >
       <Page />
+      <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} />
     </Layout>
   );
 }
