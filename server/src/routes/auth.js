@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { getStore } from '../storage/index.js';
 import { config } from '../config.js';
 import { hashPassword, verifyPassword, signJwt } from '../middleware/auth.js';
+import { seedTemplateProgram } from '../services/programs.js';
 
 export const authRouter = express.Router();
 
@@ -12,12 +13,14 @@ const publicUser = (u) => ({ id: u.id, email: u.email, displayName: u.displayNam
 
 // Collections wiped when an account is deleted.
 const USER_COLLECTIONS = [
-  'profiles', 'programs', 'scheduleDays', 'exercises',
+  'profiles', 'programs', 'scheduleDays', 'exercises', 'customMuscles',
   'workouts', 'measurements', 'physiqueRatings', 'photos', 'restLogs',
 ];
 
-async function seedDefaultProfile(store, userId, displayName) {
+async function seedNewUser(store, userId, displayName) {
   const today = new Date();
+  const startDate = iso(today);
+  const targetDate = iso(new Date(today.getTime() + 112 * DAY_MS));
   await store.insert('profiles', {
     userId,
     name: displayName,
@@ -27,12 +30,16 @@ async function seedDefaultProfile(store, userId, displayName) {
     goalWeight: 0,
     currentWaist: 0,
     goalWaist: 0,
-    startDate: iso(today),
-    targetDate: iso(new Date(today.getTime() + 112 * DAY_MS)),
+    startDate,
+    targetDate,
     bodyFat: 0,
     goalBodyFat: 0,
     units: 'metric',
   });
+  // Give every new account the Ryan Reynolds template as an editable starting
+  // program (slug exercise ids on this first program — see services/programs).
+  const programId = await seedTemplateProgram(store, userId, { startDate, targetDate });
+  await store.update('users', { id: userId }, { activeProgramId: programId });
 }
 
 // POST /api/auth/register  { email, password, name }
@@ -58,7 +65,7 @@ authRouter.post('/register', async (req, res, next) => {
       activeProgramId: null,
       createdAt: new Date().toISOString(),
     });
-    await seedDefaultProfile(store, user.id, displayName);
+    await seedNewUser(store, user.id, displayName);
 
     const token = signJwt({ sub: user.id, email: user.email });
     res.status(201).json({ token, user: publicUser(user) });

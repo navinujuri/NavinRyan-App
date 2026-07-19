@@ -15,6 +15,7 @@ import type {
   Photo,
   PhysiqueRating,
   Profile,
+  ProgramMeta,
   RestLog,
   WorkoutLog,
 } from '../types';
@@ -29,6 +30,8 @@ interface DataState {
   physique: PhysiqueRating[];
   photos: Photo[];
   restLogs: RestLog[];
+  programs: ProgramMeta[];
+  activeProgramId: string | null;
 
   reload: () => Promise<void>;
 
@@ -90,6 +93,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       physique: boot?.physiqueRatings ?? [],
       photos: boot?.photos ?? [],
       restLogs: boot?.restLogs ?? [],
+      programs: boot?.programs ?? [],
+      activeProgramId: boot?.activeProgramId ?? null,
 
       reload,
 

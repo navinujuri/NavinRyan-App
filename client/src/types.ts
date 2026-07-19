@@ -1,31 +1,22 @@
 // ── Domain types (mirror the server's domain/*.js) ──────────────────────────
 
-export type MuscleGroup =
-  | 'Side Delts'
-  | 'Upper Chest'
-  | 'Lats'
-  | 'Rear Delts'
-  | 'Triceps'
-  | 'Biceps'
-  | 'Traps'
-  | 'Abs'
-  | 'Quads'
-  | 'Hamstrings'
-  | 'Glutes'
-  | 'Calves';
+// Muscle names and day keys are now user-defined data (custom muscles, dynamic
+// program days), so these are open strings rather than fixed unions.
+export type MuscleGroup = string;
 
-export type DayKey = 'monday' | 'tuesday' | 'wednesday' | 'friday' | 'saturday';
+export type DayKey = string; // the active program's schedule-day id
 
 export interface ExerciseTemplate {
   id: string;
   name: string;
-  day: DayKey;
+  day: DayKey; // schedule-day id it belongs to
   order: number;
   cue: string;
   primaryMuscle: MuscleGroup;
   secondaryMuscles: MuscleGroup[];
   targetSets: number;
   repRange: [number, number];
+  active?: boolean; // false = soft-deleted (kept for history, not loggable)
 }
 
 export interface TrainingDay {
@@ -48,7 +39,21 @@ export interface Program {
   deloadWeek: number;
   priorities: string[];
   nonNegotiables: string[];
-  progressionRule: string;
+  progressionRule?: string;
+}
+
+/** A saved program/phase the user owns (for the phase switcher + editor). */
+export interface ProgramMeta {
+  id: string;
+  name: string;
+  isActive?: boolean;
+  order?: number;
+  durationWeeks: number;
+  deloadWeek: number;
+  startDate?: string | null;
+  targetDate?: string | null;
+  priorities?: string[];
+  nonNegotiables?: string[];
 }
 
 export interface AppConfig {
@@ -127,6 +132,8 @@ export interface RestLog {
 
 export interface Bootstrap {
   config: AppConfig;
+  programs: ProgramMeta[];
+  activeProgramId: string | null;
   profile: Profile;
   measurements: Measurement[];
   workouts: WorkoutLog[];

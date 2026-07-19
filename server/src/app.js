@@ -6,6 +6,8 @@ import { authenticate } from './middleware/auth.js';
 import { authRouter } from './routes/auth.js';
 import { metaRouter } from './routes/meta.js';
 import { profileRouter } from './routes/profile.js';
+import { programsRouter, exercisesRouter } from './routes/programs.js';
+import { musclesRouter } from './routes/muscles.js';
 import {
   collectionRouter,
   normalizeWorkout,
@@ -30,6 +32,9 @@ export function createApp() {
   // ── API (all scoped to the authenticated user) ─────────────────────────────
   app.use('/api', metaRouter);
   app.use('/api/profile', profileRouter);
+  app.use('/api/programs', programsRouter);
+  app.use('/api/exercises', exercisesRouter);
+  app.use('/api/muscles', musclesRouter);
   app.use('/api/measurements', collectionRouter('measurements', normalizeMeasurement));
   app.use('/api/workouts', collectionRouter('workouts', normalizeWorkout));
   app.use('/api/physique', collectionRouter('physiqueRatings', normalizePhysique));
