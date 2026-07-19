@@ -12,7 +12,140 @@ import {
   IconPlus,
   IconTrash,
 } from '../components/ui/icons';
-import type { ExerciseTemplate, ScheduleEntry } from '../types';
+import type { AppConfig, ExerciseTemplate, ScheduleEntry } from '../types';
+
+// Serialize the active phase into the import JSON format (round-trippable).
+function currentPhaseToJson(config: AppConfig): string {
+  return JSON.stringify(
+    {
+      name: config.program.name,
+      durationWeeks: config.program.durationWeeks,
+      deloadWeek: config.program.deloadWeek,
+      priorities: config.program.priorities,
+      nonNegotiables: config.program.nonNegotiables,
+      days: config.schedule.map((d) => ({
+        title: d.title,
+        focus: d.focus,
+        type: d.type,
+        exercises: config.exercises
+          .filter((e) => e.day === d.dayKey && e.active !== false)
+          .sort((a, b) => a.order - b.order)
+          .map((e) => ({
+            name: e.name,
+            primaryMuscle: e.primaryMuscle,
+            secondaryMuscles: e.secondaryMuscles,
+            sets: e.targetSets,
+            reps: `${e.repRange[0]}-${e.repRange[1]}`,
+            ...(e.cue ? { cue: e.cue } : {}),
+          })),
+      })),
+    },
+    null,
+    2,
+  );
+}
+
+const IMPORT_EXAMPLE = `{
+  "name": "My Phase 2",
+  "durationWeeks": 16,
+  "deloadWeek": 9,
+  "priorities": ["Side Delts", "Upper Chest"],
+  "nonNegotiables": ["Protein 180g+", "Sleep 8h"],
+  "days": [
+    {
+      "title": "Pull",
+      "focus": "V-Taper Day",
+      "type": "train",
+      "exercises": [
+        { "name": "Assisted Pull-Up", "primaryMuscle": "Lats", "secondaryMuscles": ["Biceps"], "sets": 4, "reps": "8-12", "cue": "Neutral handles" },
+        { "name": "Chest Supported Row", "primaryMuscle": "Lats", "sets": 4, "reps": "8-12" }
+      ]
+    },
+    { "title": "Rest", "type": "rest", "focus": "Walk + mobility" }
+  ]
+}`;
+
+function ImportModal({
+  open,
+  onClose,
+  currentJson,
+}: {
+  open: boolean;
+  onClose: () => void;
+  currentJson: () => string;
+}) {
+  const { reload } = useData();
+  const [text, setText] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { if (open) { setText(''); setError(null); } }, [open]);
+
+  const doImport = async () => {
+    setError(null);
+    let spec: unknown;
+    try {
+      spec = JSON.parse(text);
+    } catch {
+      setError('That’s not valid JSON — check for missing commas, quotes, or brackets.');
+      return;
+    }
+    if (!spec || typeof spec !== 'object' || !Array.isArray((spec as { days?: unknown }).days)) {
+      setError('JSON must be an object with a "days" array.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.importProgram(spec);
+      await reload(true);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Import failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Import phase from JSON"
+      wide
+      footer={
+        <>
+          <button className="btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" onClick={doImport} disabled={busy || !text.trim()}>
+            {busy ? 'Importing…' : 'Import as new phase'}
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <p className="text-sm text-fg-muted">
+          Paste a phase definition to build all its days and exercises at once. It’s added as a new phase and made active.
+          Any muscle you reference that doesn’t exist yet is added as a custom muscle automatically.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-ghost" onClick={() => setText(currentJson())}>Use current phase as template</button>
+          <button className="btn-ghost" onClick={() => setText(IMPORT_EXAMPLE)}>Load example</button>
+        </div>
+        <textarea
+          className="field min-h-[300px] font-mono text-[11px] leading-relaxed"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={IMPORT_EXAMPLE}
+          spellCheck={false}
+        />
+        {error && <p className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-xs font-medium text-bad">{error}</p>}
+        <p className="text-[11px] text-fg-faint">
+          Day <b>type</b> defaults to <code>"train"</code>. Exercise <b>sets</b> defaults to 3; <b>reps</b> accepts
+          <code> "8-12"</code> or a number (or use <code>repMin</code>/<code>repMax</code>). Muscles are optional.
+        </p>
+      </div>
+    </Modal>
+  );
+}
 
 // ── Exercise add/edit modal ──────────────────────────────────────────────────
 function ExerciseModal({
@@ -277,6 +410,7 @@ export function ProgramEditor() {
   const [busy, setBusy] = useState(false);
   const [dayModal, setDayModal] = useState<{ open: boolean; day: ScheduleEntry | null }>({ open: false, day: null });
   const [exModal, setExModal] = useState<{ open: boolean; dayKey: string; ex: ExerciseTemplate | null }>({ open: false, dayKey: '', ex: null });
+  const [importOpen, setImportOpen] = useState(false);
 
   const loadCustom = () => api.getMuscles().then((m) => setCustom(m.custom)).catch(() => {});
   useEffect(() => { loadCustom(); }, []);
@@ -329,6 +463,9 @@ export function ProgramEditor() {
           </button>
           <button className="btn-ghost" disabled={busy} onClick={() => run(async () => { const p = await api.createProgram({ name: 'Copy of template', clone: true }); await api.activateProgram((p as { id: string }).id); })}>
             <IconPlus width={15} height={15} /> Copy RR template
+          </button>
+          <button className="btn-ghost" disabled={busy} onClick={() => setImportOpen(true)}>
+            <IconPlus width={15} height={15} /> Import from JSON
           </button>
         </div>
       </Card>
@@ -450,6 +587,7 @@ export function ProgramEditor() {
           else await run(() => api.addExercise(active.id, { ...v, scheduleDayId: exModal.dayKey }));
         }}
       />
+      <ImportModal open={importOpen} onClose={() => setImportOpen(false)} currentJson={() => currentPhaseToJson(config)} />
 
       <p className="mt-6 text-center text-[11px] text-fg-faint">
         Changes apply to the active phase and update the whole app. Deleting an exercise you've already logged keeps its history in Progression.

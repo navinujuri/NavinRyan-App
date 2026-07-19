@@ -128,6 +128,8 @@ export const api = {
     request<ProgramMeta>(`/programs/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   deleteProgram: (id: string) => request<void>(`/programs/${id}`, { method: 'DELETE' }),
   activateProgram: (id: string) => request(`/programs/${id}/activate`, { method: 'POST' }),
+  importProgram: (spec: unknown) =>
+    request<ProgramMeta>('/programs/import', { method: 'POST', body: JSON.stringify(spec) }),
 
   // schedule days
   addDay: (programId: string, body: { title: string; focus?: string; type?: 'train' | 'rest' }) =>

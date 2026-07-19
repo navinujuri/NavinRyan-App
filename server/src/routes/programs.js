@@ -1,6 +1,6 @@
 import express from 'express';
 import { getStore } from '../storage/index.js';
-import { seedTemplateProgram, createEmptyProgram } from '../services/programs.js';
+import { seedTemplateProgram, createEmptyProgram, importProgram } from '../services/programs.js';
 
 const num = (v, d = 0) => (v === undefined || v === null || v === '' ? d : Number(v));
 
@@ -33,6 +33,20 @@ programsRouter.post('/', async (req, res, next) => {
       await store.update('programs', { id, userId: req.userId }, { name: String(req.body.name) });
     }
     res.status(201).json(await store.findOne('programs', { id, userId: req.userId }));
+  } catch (err) { next(err); }
+});
+
+// Bulk-import a phase from a JSON spec (days + exercises). Creates + activates
+// a new program. Defined before /:id routes (distinct path, no conflict).
+programsRouter.post('/import', async (req, res, next) => {
+  try {
+    const spec = req.body;
+    if (!spec || typeof spec !== 'object' || !Array.isArray(spec.days)) {
+      return res.status(400).json({ error: 'JSON must be an object with a "days" array.' });
+    }
+    const store = await getStore();
+    const programId = await importProgram(store, req.userId, spec, { activate: spec.activate !== false });
+    res.status(201).json(await store.findOne('programs', { id: programId, userId: req.userId }));
   } catch (err) { next(err); }
 });
 

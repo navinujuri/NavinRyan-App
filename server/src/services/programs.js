@@ -69,6 +69,112 @@ export async function seedTemplateProgram(store, userId, {
   return programId;
 }
 
+// Parse a variety of rep formats into [min, max].
+function parseReps(e) {
+  if (e.repMin !== undefined || e.repMax !== undefined) {
+    const lo = Number(e.repMin) || 0;
+    const hi = Number(e.repMax) || lo || 0;
+    return [lo, hi];
+  }
+  const r = e.reps ?? e.repRange;
+  if (Array.isArray(r)) return [Number(r[0]) || 0, Number(r[1]) || Number(r[0]) || 0];
+  if (typeof r === 'number') return [r, r];
+  if (typeof r === 'string') {
+    const m = r.match(/(\d+)\s*(?:[-–]|to)\s*(\d+)/);
+    if (m) return [Number(m[1]), Number(m[2])];
+    const single = Number(r.trim());
+    if (!Number.isNaN(single)) return [single, single];
+  }
+  return [8, 12];
+}
+
+/**
+ * Bulk-import a whole phase from a JSON spec (days + their exercises), creating
+ * the program, schedule days, exercises, and auto-adding any referenced muscle
+ * that isn't already known (as a custom muscle). Optionally activates it.
+ *
+ * Spec shape:
+ *   { name?, durationWeeks?, deloadWeek?, priorities?[], nonNegotiables?[],
+ *     days: [ { title, focus?, type?('train'|'rest'),
+ *              exercises?: [ { name, primaryMuscle?, secondaryMuscles?[],
+ *                             sets?, repMin?, repMax? | reps?("8-12"), cue? } ] } ] }
+ */
+export async function importProgram(store, userId, spec, { activate = true } = {}) {
+  const existingCustom = (await store.list('customMuscles', { userId })).map((m) => m.name);
+  const known = new Set([...MUSCLE_GROUPS, ...existingCustom]);
+  const ensureMuscle = async (name) => {
+    const n = String(name || '').trim();
+    if (!n || known.has(n)) return;
+    await store.insert('customMuscles', { userId, name: n });
+    known.add(n);
+  };
+
+  const order = (await store.list('programs', { userId })).length;
+  const programId = crypto.randomUUID();
+  await store.insert('programs', {
+    id: programId,
+    userId,
+    name: String(spec.name || 'Imported Phase'),
+    durationWeeks: Number(spec.durationWeeks) || 16,
+    deloadWeek: Number(spec.deloadWeek) || 9,
+    priorities: Array.isArray(spec.priorities) ? spec.priorities.map(String) : [],
+    nonNegotiables: Array.isArray(spec.nonNegotiables) ? spec.nonNegotiables.map(String) : [],
+    startDate: null,
+    targetDate: null,
+    isActive: false,
+    order,
+    createdAt: new Date().toISOString(),
+  });
+
+  const days = Array.isArray(spec.days) ? spec.days : [];
+  let dayNum = 0;
+  for (const d of days) {
+    dayNum += 1;
+    const type = d.type === 'rest' ? 'rest' : 'train';
+    const dayId = crypto.randomUUID();
+    await store.insert('scheduleDays', {
+      id: dayId,
+      userId,
+      programId,
+      day: dayNum,
+      order: dayNum,
+      type,
+      title: String(d.title || (type === 'rest' ? 'Rest' : `Day ${dayNum}`)),
+      focus: String(d.focus || ''),
+    });
+    const exs = Array.isArray(d.exercises) ? d.exercises : [];
+    let exOrder = 0;
+    for (const e of exs) {
+      exOrder += 1;
+      const [repMin, repMax] = parseReps(e);
+      await ensureMuscle(e.primaryMuscle);
+      const secondary = Array.isArray(e.secondaryMuscles) ? e.secondaryMuscles.map(String) : [];
+      for (const m of secondary) await ensureMuscle(m);
+      await store.insert('exercises', {
+        userId,
+        programId,
+        scheduleDayId: dayId,
+        name: String(e.name || 'Exercise'),
+        order: exOrder,
+        cue: String(e.cue || ''),
+        primaryMuscle: String(e.primaryMuscle || ''),
+        secondaryMuscles: secondary,
+        targetSets: Number(e.sets ?? e.targetSets) || 3,
+        repMin,
+        repMax,
+        active: true,
+      });
+    }
+  }
+
+  if (activate) {
+    const all = await store.list('programs', { userId });
+    for (const p of all) await store.update('programs', { id: p.id, userId }, { isActive: p.id === programId });
+    await store.update('users', { id: userId }, { activeProgramId: programId });
+  }
+  return programId;
+}
+
 /** Create an empty program (no days/exercises) for the user to build up. */
 export async function createEmptyProgram(store, userId, name, order = 0) {
   const programId = crypto.randomUUID();
