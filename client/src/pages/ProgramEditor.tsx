@@ -6,13 +6,55 @@ import { Modal } from '../components/ui/Modal';
 import {
   IconCalendar,
   IconCheck,
+  IconCopy,
   IconDumbbell,
   IconEdit,
+  IconExport,
   IconMuscle,
   IconPlus,
   IconTrash,
 } from '../components/ui/icons';
+import { downloadFile } from '../lib/report';
 import type { AppConfig, ExerciseTemplate, ScheduleEntry } from '../types';
+
+const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'program';
+
+function ExportModal({ open, onClose, json, name }: { open: boolean; onClose: () => void; json: string; name: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(json);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {
+      downloadFile(`${slugify(name)}.json`, json, 'application/json');
+    }
+  };
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Export current phase"
+      wide
+      footer={
+        <>
+          <button className="btn-ghost" onClick={onClose}>Close</button>
+          <button className="btn-ghost" onClick={() => downloadFile(`${slugify(name)}.json`, json, 'application/json')}>
+            <IconExport width={15} height={15} /> Download .json
+          </button>
+          <button className={copied ? 'btn bg-good/20 text-good' : 'btn-primary'} onClick={copy}>
+            {copied ? <><IconCheck width={15} height={15} /> Copied</> : <><IconCopy width={15} height={15} /> Copy JSON</>}
+          </button>
+        </>
+      }
+    >
+      <p className="mb-2 text-sm text-fg-muted">
+        Your active phase in the import format — copy or download it, tweak it, and import it back as a new phase (or keep it as a backup / share it).
+      </p>
+      <textarea readOnly className="field min-h-[340px] font-mono text-[11px] leading-relaxed" value={json} spellCheck={false} />
+    </Modal>
+  );
+}
 
 // Serialize the active phase into the import JSON format (round-trippable).
 function currentPhaseToJson(config: AppConfig): string {
@@ -411,6 +453,7 @@ export function ProgramEditor() {
   const [dayModal, setDayModal] = useState<{ open: boolean; day: ScheduleEntry | null }>({ open: false, day: null });
   const [exModal, setExModal] = useState<{ open: boolean; dayKey: string; ex: ExerciseTemplate | null }>({ open: false, dayKey: '', ex: null });
   const [importOpen, setImportOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const loadCustom = () => api.getMuscles().then((m) => setCustom(m.custom)).catch(() => {});
   useEffect(() => { loadCustom(); }, []);
@@ -466,6 +509,9 @@ export function ProgramEditor() {
           </button>
           <button className="btn-ghost" disabled={busy} onClick={() => setImportOpen(true)}>
             <IconPlus width={15} height={15} /> Import from JSON
+          </button>
+          <button className="btn-ghost" disabled={busy || !active} onClick={() => setExportOpen(true)}>
+            <IconExport width={15} height={15} /> Export phase
           </button>
         </div>
       </Card>
@@ -588,6 +634,7 @@ export function ProgramEditor() {
         }}
       />
       <ImportModal open={importOpen} onClose={() => setImportOpen(false)} currentJson={() => currentPhaseToJson(config)} />
+      <ExportModal open={exportOpen} onClose={() => setExportOpen(false)} json={currentPhaseToJson(config)} name={config.program.name} />
 
       <p className="mt-6 text-center text-[11px] text-fg-faint">
         Changes apply to the active phase and update the whole app. Deleting an exercise you've already logged keeps its history in Progression.
