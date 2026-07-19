@@ -1,8 +1,9 @@
-import { StrictMode } from 'react';
+import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import { App } from './App';
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { AuthProvider, useAuth } from './state/AuthContext';
 import { DataProvider } from './state/DataContext';
 import { IconFlame } from './components/ui/icons';
@@ -17,11 +18,19 @@ function Splash() {
   );
 }
 
-/** Gate: show a splash while checking auth, then Login or the app. */
+/** Gate: splash while checking auth, then Login/Register, then the app. */
 function Gate() {
   const { status } = useAuth();
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+
   if (status === 'loading') return <Splash />;
-  if (status === 'anon') return <Login />;
+  if (status === 'anon') {
+    return mode === 'login' ? (
+      <Login onRegister={() => setMode('register')} />
+    ) : (
+      <Register onLogin={() => setMode('login')} />
+    );
+  }
   return (
     <DataProvider>
       <App />

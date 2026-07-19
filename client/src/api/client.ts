@@ -4,6 +4,7 @@ import type {
   Photo,
   PhysiqueRating,
   Profile,
+  ProgramMeta,
   RestLog,
   WorkoutLog,
 } from '../types';
@@ -41,27 +42,45 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export interface HealthInfo {
-  ok: boolean;
-  authRequired: boolean;
+export interface AuthUser {
+  id: string;
+  email: string;
+  displayName: string;
+}
+
+// Public auth calls use their own fetch so validation errors surface inline
+// (instead of the generic 401 → reload behaviour used for the data API).
+async function authPost(path: string, body: unknown) {
+  const res = await fetch(`${API}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data as { token: string; user: AuthUser };
 }
 
 export const api = {
-  // Public — used before login to decide whether to show the login screen.
-  health: () => request<HealthInfo>('/health'),
+  register: (name: string, email: string, password: string) =>
+    authPost('/auth/register', { name, email, password }),
+  login: (email: string, password: string) =>
+    authPost('/auth/login', { email, password }),
+  me: () => request<{ user: AuthUser }>('/auth/me'),
 
-  // Public — validates credentials and returns a bearer token. Uses its own
-  // fetch so a wrong password surfaces an inline error instead of reloading.
-  login: async (username: string, password: string) => {
-    const res = await fetch(`${API}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+  // Change password — own fetch so a wrong current password shows inline
+  // (not the generic 401 → reload).
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    const res = await fetch(`${API}/auth/password`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(tokenStore.get() ? { Authorization: `Bearer ${tokenStore.get()}` } : {}) },
+      body: JSON.stringify({ currentPassword, newPassword }),
     });
-    if (res.status === 401) throw new Error('Invalid username or password.');
-    if (!res.ok) throw new Error(`Login failed (${res.status})`);
-    return res.json() as Promise<{ token: string; user: string }>;
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
+    return data as { ok: boolean };
   },
+  deleteAccount: () => request<void>('/auth/account', { method: 'DELETE' }),
 
   bootstrap: () => request<Bootstrap>('/bootstrap'),
 
@@ -102,7 +121,36 @@ export const api = {
     request<RestLog>(`/rest/${id}`, { method: 'PUT', body: JSON.stringify(r) }),
   deleteRest: (id: string) => request<void>(`/rest/${id}`, { method: 'DELETE' }),
 
+  // programs / phases
+  createProgram: (body: { name?: string; clone?: boolean }) =>
+    request<ProgramMeta>('/programs', { method: 'POST', body: JSON.stringify(body) }),
+  updateProgram: (id: string, patch: Partial<ProgramMeta>) =>
+    request<ProgramMeta>(`/programs/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  deleteProgram: (id: string) => request<void>(`/programs/${id}`, { method: 'DELETE' }),
+  activateProgram: (id: string) => request(`/programs/${id}/activate`, { method: 'POST' }),
+
+  // schedule days
+  addDay: (programId: string, body: { title: string; focus?: string; type?: 'train' | 'rest' }) =>
+    request(`/programs/${programId}/days`, { method: 'POST', body: JSON.stringify(body) }),
+  updateDay: (programId: string, dayId: string, patch: Record<string, unknown>) =>
+    request(`/programs/${programId}/days/${dayId}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  deleteDay: (programId: string, dayId: string) =>
+    request<void>(`/programs/${programId}/days/${dayId}`, { method: 'DELETE' }),
+
+  // exercises
+  addExercise: (programId: string, body: Record<string, unknown>) =>
+    request(`/programs/${programId}/exercises`, { method: 'POST', body: JSON.stringify(body) }),
+  updateExercise: (id: string, patch: Record<string, unknown>) =>
+    request(`/exercises/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  deleteExercise: (id: string) => request(`/exercises/${id}`, { method: 'DELETE' }),
+
+  // custom muscles
+  getMuscles: () =>
+    request<{ fixed: string[]; physique: string[]; custom: { id: string; name: string }[]; all: string[] }>('/muscles'),
+  addCustomMuscle: (name: string) =>
+    request<{ id: string; name: string }>('/muscles/custom', { method: 'POST', body: JSON.stringify({ name }) }),
+  deleteCustomMuscle: (id: string) => request<void>(`/muscles/custom/${id}`, { method: 'DELETE' }),
+
   // meta
   exportAll: () => request<Record<string, unknown>>('/export'),
-  reset: () => request<{ ok: boolean }>('/reset', { method: 'POST' }),
 };

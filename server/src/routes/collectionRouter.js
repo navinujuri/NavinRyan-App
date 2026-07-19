@@ -15,10 +15,10 @@ import { getStore } from '../storage/index.js';
 export function collectionRouter(collection, normalize = (x) => x) {
   const router = express.Router();
 
-  router.get('/', async (_req, res, next) => {
+  router.get('/', async (req, res, next) => {
     try {
       const store = await getStore();
-      res.json(await store.list(collection));
+      res.json(await store.list(collection, { userId: req.userId }));
     } catch (err) {
       next(err);
     }
@@ -27,7 +27,7 @@ export function collectionRouter(collection, normalize = (x) => x) {
   router.post('/', async (req, res, next) => {
     try {
       const store = await getStore();
-      const created = await store.insert(collection, normalize(req.body));
+      const created = await store.insert(collection, { ...normalize(req.body), userId: req.userId });
       res.status(201).json(created);
     } catch (err) {
       next(err);
@@ -37,7 +37,8 @@ export function collectionRouter(collection, normalize = (x) => x) {
   router.put('/:id', async (req, res, next) => {
     try {
       const store = await getStore();
-      const updated = await store.update(collection, req.params.id, normalize(req.body));
+      // Scoping by userId means a user can only ever update their own rows.
+      const updated = await store.update(collection, { id: req.params.id, userId: req.userId }, normalize(req.body));
       if (!updated) return res.status(404).json({ error: 'Not found' });
       res.json(updated);
     } catch (err) {
@@ -48,7 +49,7 @@ export function collectionRouter(collection, normalize = (x) => x) {
   router.delete('/:id', async (req, res, next) => {
     try {
       const store = await getStore();
-      const ok = await store.remove(collection, req.params.id);
+      const ok = await store.remove(collection, { id: req.params.id, userId: req.userId });
       if (!ok) return res.status(404).json({ error: 'Not found' });
       res.status(204).end();
     } catch (err) {

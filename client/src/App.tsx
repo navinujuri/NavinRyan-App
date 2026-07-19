@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Layout } from './components/layout/Layout';
 import { useHashRoute } from './lib/useHashRoute';
 import { useData } from './state/DataContext';
@@ -6,9 +6,11 @@ import { useAuth } from './state/AuthContext';
 import { programState, ryanReynoldsProgress } from './lib/calculations';
 import { IconFlame, IconLogout, IconRefresh } from './components/ui/icons';
 import { Pill } from './components/ui/primitives';
+import { AccountModal } from './components/AccountModal';
 
 import { Dashboard } from './pages/Dashboard';
 import { Workouts } from './pages/Workouts';
+import { ProgramEditor } from './pages/ProgramEditor';
 import { Progression } from './pages/Progression';
 import { Muscles } from './pages/Muscles';
 import { BodyMetrics } from './pages/BodyMetrics';
@@ -52,6 +54,7 @@ function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => voi
 const PAGES: Record<RouteId, () => JSX.Element | null> = {
   dashboard: Dashboard,
   workouts: Workouts,
+  program: ProgramEditor,
   progression: Progression,
   muscles: Muscles,
   metrics: BodyMetrics,
@@ -64,7 +67,8 @@ const PAGES: Record<RouteId, () => JSX.Element | null> = {
 export function App() {
   const [route, navigate] = useHashRoute();
   const data = useData();
-  const { logout, authRequired } = useAuth();
+  const { logout, user } = useAuth();
+  const [accountOpen, setAccountOpen] = useState(false);
 
   const header = useMemo(() => {
     if (!data.config || !data.profile) return null;
@@ -98,27 +102,28 @@ export function App() {
               <IconFlame width={13} height={13} />
               RR Progress {Math.round(header.rr.total)}%
             </Pill>
-            <button
-              onClick={data.resetDemo}
-              title="Reset to demo data"
-              className="rounded-lg border border-hair bg-ink-800 p-2 text-fg-faint transition hover:border-hair2 hover:text-fg"
-            >
-              <IconRefresh width={15} height={15} />
-            </button>
-            {authRequired && (
+            {user && (
               <button
-                onClick={logout}
-                title="Sign out"
-                className="rounded-lg border border-hair bg-ink-800 p-2 text-fg-faint transition hover:border-bad/40 hover:text-bad"
+                onClick={() => setAccountOpen(true)}
+                title="Account settings"
+                className="rounded-full border border-hair bg-ink-800 px-2.5 py-1 text-xs font-medium text-fg-muted transition hover:border-hair2 hover:text-fg"
               >
-                <IconLogout width={15} height={15} />
+                {user.displayName}
               </button>
             )}
+            <button
+              onClick={logout}
+              title="Sign out"
+              className="rounded-lg border border-hair bg-ink-800 p-2 text-fg-faint transition hover:border-bad/40 hover:text-bad"
+            >
+              <IconLogout width={15} height={15} />
+            </button>
           </div>
         )
       }
     >
       <Page />
+      <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} />
     </Layout>
   );
 }

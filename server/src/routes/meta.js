@@ -1,43 +1,30 @@
 import express from 'express';
 import { getStore } from '../storage/index.js';
-import { EXERCISES, PROGRAM, SCHEDULE, TRAINING_DAYS } from '../domain/exercises.js';
-import { MUSCLE_GROUPS, PHYSIQUE_MUSCLES, SECONDARY_VOLUME_WEIGHT } from '../domain/muscles.js';
-import { buildSeed } from '../data/seed.js';
-import { authEnabled } from '../middleware/auth.js';
+import { PROGRAM } from '../domain/exercises.js';
+import { loadProgramState } from '../services/programs.js';
 
 export const metaRouter = express.Router();
 
-// The static domain config the client needs to render the program & muscle map.
-const appConfig = () => ({
-  exercises: EXERCISES,
-  trainingDays: TRAINING_DAYS,
-  schedule: SCHEDULE,
-  muscleGroups: MUSCLE_GROUPS,
-  physiqueMuscles: PHYSIQUE_MUSCLES,
-  secondaryVolumeWeight: SECONDARY_VOLUME_WEIGHT,
-  program: PROGRAM,
-});
-
-// Static domain config the client needs to render the program & muscle map.
-metaRouter.get('/config', (_req, res) => {
-  res.json(appConfig());
-});
-
-// One-shot bootstrap: everything the SPA needs on load.
-metaRouter.get('/bootstrap', async (_req, res, next) => {
+// One-shot bootstrap: the user's active program (as `config`) + all their data.
+metaRouter.get('/bootstrap', async (req, res, next) => {
   try {
     const store = await getStore();
-    const [profile, measurements, workouts, physiqueRatings, photos, restLogs] = await Promise.all([
-      store.getSingleton('profile'),
-      store.list('measurements'),
-      store.list('workouts'),
-      store.list('physiqueRatings'),
-      store.list('photos'),
-      store.list('restLogs'),
-    ]);
+    const scope = { userId: req.userId };
+    const [{ config, programs, activeProgramId }, profile, measurements, workouts, physiqueRatings, photos, restLogs] =
+      await Promise.all([
+        loadProgramState(store, req.userId),
+        store.findOne('profiles', scope),
+        store.list('measurements', scope),
+        store.list('workouts', scope),
+        store.list('physiqueRatings', scope),
+        store.list('photos', scope),
+        store.list('restLogs', scope),
+      ]);
     res.json({
-      config: appConfig(),
-      profile,
+      config,
+      programs,
+      activeProgramId,
+      profile: profile || {},
       measurements,
       workouts,
       physiqueRatings,
@@ -49,19 +36,27 @@ metaRouter.get('/bootstrap', async (_req, res, next) => {
   }
 });
 
-// Full database dump (used by the Export feature).
-metaRouter.get('/export', async (_req, res, next) => {
+// Full export of the signed-in user's data.
+metaRouter.get('/export', async (req, res, next) => {
   try {
     const store = await getStore();
-    const db = await store.dump();
+    const scope = { userId: req.userId };
+    const [profile, measurements, workouts, physiqueRatings, photos, restLogs] = await Promise.all([
+      store.findOne('profiles', scope),
+      store.list('measurements', scope),
+      store.list('workouts', scope),
+      store.list('physiqueRatings', scope),
+      store.list('photos', scope),
+      store.list('restLogs', scope),
+    ]);
     res.json({
-      profile: db.profile,
-      measurements: db.measurements,
-      workouts: db.workouts,
+      profile: profile || {},
+      measurements,
+      workouts,
       muscleVolumes: [], // derived client-side; included for schema completeness
-      physiqueRatings: db.physiqueRatings,
-      photos: db.photos,
-      restLogs: db.restLogs || [],
+      physiqueRatings,
+      photos,
+      restLogs,
       exportedAt: new Date().toISOString(),
       program: PROGRAM.name,
     });
@@ -70,17 +65,6 @@ metaRouter.get('/export', async (_req, res, next) => {
   }
 });
 
-// Reset to the demo seed (handy while exploring).
-metaRouter.post('/reset', async (_req, res, next) => {
-  try {
-    const store = await getStore();
-    await store.reset(buildSeed);
-    res.json({ ok: true });
-  } catch (err) {
-    next(err);
-  }
-});
-
 metaRouter.get('/health', (_req, res) =>
-  res.json({ ok: true, service: 'rrpt-server', authRequired: authEnabled() }),
+  res.json({ ok: true, service: 'rrpt-server' }),
 );

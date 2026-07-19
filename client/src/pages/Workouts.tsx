@@ -270,7 +270,7 @@ export function Workouts() {
 
   // Next training day in the rotation (skips rest days).
   const nextDayKey = useMemo<DayKey>(() => {
-    if (!trainingOrder.length) return 'monday';
+    if (!trainingOrder.length) return '';
     if (!lastSession) return trainingOrder[0];
     const idx = trainingOrder.indexOf(lastSession.dayKey);
     return trainingOrder[(idx + 1) % trainingOrder.length];
@@ -305,7 +305,9 @@ export function Workouts() {
   const nextSched = schedByKey[nextDayKey];
   const dayExercises = isRest
     ? []
-    : config.exercises.filter((e) => e.day === selEntry.dayKey).sort((a, b) => a.order - b.order);
+    : config.exercises
+        .filter((e) => e.day === selEntry.dayKey && e.active !== false)
+        .sort((a, b) => a.order - b.order);
 
   const loggedToday = workouts.filter((w) => w.date === date);
   const sessionVolume = dayExercises.reduce((sum, ex) => {

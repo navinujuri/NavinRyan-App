@@ -7,15 +7,15 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api, tokenStore } from '../api/client';
+import { api, tokenStore, type AuthUser } from '../api/client';
 
 type Status = 'loading' | 'authed' | 'anon';
 
 interface AuthState {
   status: Status;
-  user: string | null;
-  authRequired: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  user: AuthUser | null;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -23,36 +23,41 @@ const Ctx = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>('loading');
-  const [user, setUser] = useState<string | null>(null);
-  const [authRequired, setAuthRequired] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
-  // On load, ask the server whether auth is required, then decide.
+  // On load: if we hold a token, confirm it with /auth/me; otherwise show login.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const health = await api.health();
+    if (!tokenStore.get()) {
+      setStatus('anon');
+      return;
+    }
+    api
+      .me()
+      .then(({ user: u }) => {
         if (cancelled) return;
-        setAuthRequired(health.authRequired);
-        if (!health.authRequired) {
-          setStatus('authed'); // gate disabled (e.g. local dev)
-        } else if (tokenStore.get()) {
-          setStatus('authed'); // trust stored token; a stale one 401s later → login
-        } else {
-          setStatus('anon');
-        }
-      } catch {
-        // Can't reach the server — let the app mount and show its own error state.
-        if (!cancelled) setStatus(tokenStore.get() ? 'authed' : 'anon');
-      }
-    })();
+        setUser(u);
+        setStatus('authed');
+      })
+      .catch(() => {
+        // 401 is handled inside the client (clears token + reloads); other
+        // failures fall back to the login screen.
+        if (!cancelled) setStatus('anon');
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const login = useCallback(async (username: string, password: string) => {
-    const { token, user: u } = await api.login(username, password);
+  const login = useCallback(async (email: string, password: string) => {
+    const { token, user: u } = await api.login(email, password);
+    tokenStore.set(token);
+    setUser(u);
+    setStatus('authed');
+  }, []);
+
+  const register = useCallback(async (name: string, email: string, password: string) => {
+    const { token, user: u } = await api.register(name, email, password);
     tokenStore.set(token);
     setUser(u);
     setStatus('authed');
@@ -65,8 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthState>(
-    () => ({ status, user, authRequired, login, logout }),
-    [status, user, authRequired, login, logout],
+    () => ({ status, user, login, register, logout }),
+    [status, user, login, register, logout],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
