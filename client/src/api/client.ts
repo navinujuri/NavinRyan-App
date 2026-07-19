@@ -4,6 +4,7 @@ import type {
   Photo,
   PhysiqueRating,
   Profile,
+  ProgramMeta,
   RestLog,
   WorkoutLog,
 } from '../types';
@@ -105,6 +106,36 @@ export const api = {
   updateRest: (id: string, r: Partial<RestLog>) =>
     request<RestLog>(`/rest/${id}`, { method: 'PUT', body: JSON.stringify(r) }),
   deleteRest: (id: string) => request<void>(`/rest/${id}`, { method: 'DELETE' }),
+
+  // programs / phases
+  createProgram: (body: { name?: string; clone?: boolean }) =>
+    request<ProgramMeta>('/programs', { method: 'POST', body: JSON.stringify(body) }),
+  updateProgram: (id: string, patch: Partial<ProgramMeta>) =>
+    request<ProgramMeta>(`/programs/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  deleteProgram: (id: string) => request<void>(`/programs/${id}`, { method: 'DELETE' }),
+  activateProgram: (id: string) => request(`/programs/${id}/activate`, { method: 'POST' }),
+
+  // schedule days
+  addDay: (programId: string, body: { title: string; focus?: string; type?: 'train' | 'rest' }) =>
+    request(`/programs/${programId}/days`, { method: 'POST', body: JSON.stringify(body) }),
+  updateDay: (programId: string, dayId: string, patch: Record<string, unknown>) =>
+    request(`/programs/${programId}/days/${dayId}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  deleteDay: (programId: string, dayId: string) =>
+    request<void>(`/programs/${programId}/days/${dayId}`, { method: 'DELETE' }),
+
+  // exercises
+  addExercise: (programId: string, body: Record<string, unknown>) =>
+    request(`/programs/${programId}/exercises`, { method: 'POST', body: JSON.stringify(body) }),
+  updateExercise: (id: string, patch: Record<string, unknown>) =>
+    request(`/exercises/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  deleteExercise: (id: string) => request(`/exercises/${id}`, { method: 'DELETE' }),
+
+  // custom muscles
+  getMuscles: () =>
+    request<{ fixed: string[]; physique: string[]; custom: { id: string; name: string }[]; all: string[] }>('/muscles'),
+  addCustomMuscle: (name: string) =>
+    request<{ id: string; name: string }>('/muscles/custom', { method: 'POST', body: JSON.stringify({ name }) }),
+  deleteCustomMuscle: (id: string) => request<void>(`/muscles/custom/${id}`, { method: 'DELETE' }),
 
   // meta
   exportAll: () => request<Record<string, unknown>>('/export'),

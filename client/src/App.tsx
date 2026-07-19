@@ -9,6 +9,7 @@ import { Pill } from './components/ui/primitives';
 
 import { Dashboard } from './pages/Dashboard';
 import { Workouts } from './pages/Workouts';
+import { ProgramEditor } from './pages/ProgramEditor';
 import { Progression } from './pages/Progression';
 import { Muscles } from './pages/Muscles';
 import { BodyMetrics } from './pages/BodyMetrics';
@@ -52,6 +53,7 @@ function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => voi
 const PAGES: Record<RouteId, () => JSX.Element | null> = {
   dashboard: Dashboard,
   workouts: Workouts,
+  program: ProgramEditor,
   progression: Progression,
   muscles: Muscles,
   metrics: BodyMetrics,

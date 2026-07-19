@@ -33,7 +33,7 @@ interface DataState {
   programs: ProgramMeta[];
   activeProgramId: string | null;
 
-  reload: () => Promise<void>;
+  reload: (silent?: boolean) => Promise<void>;
 
   saveProfile: (patch: Partial<Profile>) => Promise<void>;
 
@@ -62,16 +62,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [boot, setBoot] = useState<Bootstrap | null>(null);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true); // silent refresh keeps the app on-screen
       const data = await api.bootstrap();
       setBoot(data);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load data');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 

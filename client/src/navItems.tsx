@@ -4,6 +4,7 @@ import {
   IconCamera,
   IconDashboard,
   IconDumbbell,
+  IconEdit,
   IconExport,
   IconMuscle,
   IconRadar,
@@ -14,6 +15,7 @@ import {
 export type RouteId =
   | 'dashboard'
   | 'workouts'
+  | 'program'
   | 'progression'
   | 'muscles'
   | 'metrics'
@@ -32,6 +34,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <IconDashboard />, group: 'Overview' },
   { id: 'workouts', label: 'Workout Tracker', icon: <IconDumbbell />, group: 'Training' },
+  { id: 'program', label: 'Program Editor', icon: <IconEdit />, group: 'Training' },
   { id: 'progression', label: 'Progression', icon: <IconTrend />, group: 'Training' },
   { id: 'muscles', label: 'Muscle Groups', icon: <IconMuscle />, group: 'Training' },
   { id: 'metrics', label: 'Body Metrics', icon: <IconRuler />, group: 'Body' },
