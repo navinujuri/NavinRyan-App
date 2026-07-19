@@ -213,6 +213,22 @@ function buildPhotos() {
   return photos;
 }
 
+/** A fresh, empty multi-user database (users register to create their data). */
+export function emptyDb() {
+  return {
+    users: [],
+    profiles: [],
+    programs: [],
+    scheduleDays: [],
+    exercises: [],
+    workouts: [],
+    measurements: [],
+    physiqueRatings: [],
+    photos: [],
+    restLogs: [],
+  };
+}
+
 export function buildSeed() {
   return {
     profile: {

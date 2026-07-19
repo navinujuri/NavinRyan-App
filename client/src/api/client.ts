@@ -41,27 +41,31 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export interface HealthInfo {
-  ok: boolean;
-  authRequired: boolean;
+export interface AuthUser {
+  id: string;
+  email: string;
+  displayName: string;
+}
+
+// Public auth calls use their own fetch so validation errors surface inline
+// (instead of the generic 401 → reload behaviour used for the data API).
+async function authPost(path: string, body: unknown) {
+  const res = await fetch(`${API}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data as { token: string; user: AuthUser };
 }
 
 export const api = {
-  // Public — used before login to decide whether to show the login screen.
-  health: () => request<HealthInfo>('/health'),
-
-  // Public — validates credentials and returns a bearer token. Uses its own
-  // fetch so a wrong password surfaces an inline error instead of reloading.
-  login: async (username: string, password: string) => {
-    const res = await fetch(`${API}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-    if (res.status === 401) throw new Error('Invalid username or password.');
-    if (!res.ok) throw new Error(`Login failed (${res.status})`);
-    return res.json() as Promise<{ token: string; user: string }>;
-  },
+  register: (name: string, email: string, password: string) =>
+    authPost('/auth/register', { name, email, password }),
+  login: (email: string, password: string) =>
+    authPost('/auth/login', { email, password }),
+  me: () => request<{ user: AuthUser }>('/auth/me'),
 
   bootstrap: () => request<Bootstrap>('/bootstrap'),
 
@@ -104,5 +108,4 @@ export const api = {
 
   // meta
   exportAll: () => request<Record<string, unknown>>('/export'),
-  reset: () => request<{ ok: boolean }>('/reset', { method: 'POST' }),
 };

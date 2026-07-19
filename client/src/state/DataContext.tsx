@@ -31,7 +31,6 @@ interface DataState {
   restLogs: RestLog[];
 
   reload: () => Promise<void>;
-  resetDemo: () => Promise<void>;
 
   saveProfile: (patch: Partial<Profile>) => Promise<void>;
 
@@ -93,10 +92,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       restLogs: boot?.restLogs ?? [],
 
       reload,
-      resetDemo: async () => {
-        await api.reset();
-        await reload();
-      },
 
       saveProfile: async (p) => {
         const updated = await api.updateProfile(p);

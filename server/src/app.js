@@ -2,7 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import fs from 'node:fs';
 import { config } from './config.js';
-import { requireAuth, loginHandler } from './middleware/auth.js';
+import { authenticate } from './middleware/auth.js';
+import { authRouter } from './routes/auth.js';
 import { metaRouter } from './routes/meta.js';
 import { profileRouter } from './routes/profile.js';
 import {
@@ -21,11 +22,12 @@ export function createApp() {
   // Progress photos are stored as base64 data URLs → allow a generous body size.
   app.use(express.json({ limit: '25mb' }));
 
-  // Token gate for the data API (SPA shell + /api/login + /api/health stay open).
-  app.use(requireAuth);
-  app.post('/api/login', loginHandler);
+  // JWT gate: SPA shell + /api/health + /api/auth/{login,register} stay open;
+  // every other /api route requires a valid token and is scoped to req.userId.
+  app.use(authenticate);
+  app.use('/api/auth', authRouter);
 
-  // ── API ───────────────────────────────────────────────────────────────────
+  // ── API (all scoped to the authenticated user) ─────────────────────────────
   app.use('/api', metaRouter);
   app.use('/api/profile', profileRouter);
   app.use('/api/measurements', collectionRouter('measurements', normalizeMeasurement));

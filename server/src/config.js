@@ -26,11 +26,10 @@ export const config = {
   // Path to the built client (served in production single-process mode).
   clientDist: path.resolve(__dirname, '..', '..', 'client', 'dist'),
 
-  // Optional HTTP Basic Auth gate. When both are set (e.g. in production), every
-  // request except the health check must send matching credentials. Unset in
-  // local dev, so the gate is off.
-  auth: {
-    user: process.env.AUTH_USER || '',
-    pass: process.env.AUTH_PASS || '',
-  },
+  // Secret used to sign JWTs. MUST be set in production (long random string).
+  // The dev fallback keeps local runs working without configuration.
+  jwtSecret: process.env.JWT_SECRET || 'dev-insecure-secret-change-in-production',
+
+  // Registration policy — open by default; set to "false" to lock signups.
+  allowRegistration: (process.env.ALLOW_REGISTRATION ?? 'true') !== 'false',
 };

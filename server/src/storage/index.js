@@ -1,7 +1,7 @@
 import { config } from '../config.js';
 import { JsonStore } from './jsonStore.js';
 import { MongoStore } from './mongoStore.js';
-import { buildSeed } from '../data/seed.js';
+import { emptyDb } from '../data/seed.js';
 
 let storePromise = null;
 
@@ -22,7 +22,7 @@ export function getStore() {
           store = new JsonStore(config.jsonDbPath);
           break;
       }
-      return store.init(buildSeed);
+      return store.init(emptyDb);
     })().catch((err) => {
       // Don't cache the failure — let the next call (a retry or a request) try
       // again once the DB becomes reachable (e.g. after fixing the allowlist).

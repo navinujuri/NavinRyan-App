@@ -1,55 +1,66 @@
 import crypto from 'node:crypto';
 import { config } from '../config.js';
 
-// Constant-time string compare (avoids leaking match info via timing).
-function safeEqual(a, b) {
-  const ab = Buffer.from(String(a));
-  const bb = Buffer.from(String(b));
-  if (ab.length !== bb.length) return false;
-  return crypto.timingSafeEqual(ab, bb);
+// ── Password hashing (scrypt — built into Node, no dependency) ───────────────
+export function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const derived = crypto.scryptSync(String(password), salt, 64).toString('hex');
+  return `scrypt:${salt}:${derived}`;
 }
 
-/** Auth is active only when BOTH credentials are configured (off in local dev). */
-export function authEnabled() {
-  return Boolean(config.auth.user && config.auth.pass);
+export function verifyPassword(password, stored) {
+  const [scheme, salt, hash] = String(stored || '').split(':');
+  if (scheme !== 'scrypt' || !salt || !hash) return false;
+  const derived = crypto.scryptSync(String(password), salt, 64).toString('hex');
+  const a = Buffer.from(hash, 'hex');
+  const b = Buffer.from(derived, 'hex');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-/**
- * Deterministic, stateless bearer token derived from the credentials. The
- * server can recompute it on every request, so there's no session store to
- * keep — and changing the password automatically invalidates old tokens.
- */
-export function expectedToken() {
-  return crypto
-    .createHmac('sha256', config.auth.pass)
-    .update(`rrpt:${config.auth.user}`)
-    .digest('hex');
+// ── JWT (HS256, hand-rolled with crypto — no dependency) ─────────────────────
+const b64url = (buf) => Buffer.from(buf).toString('base64url');
+
+export function signJwt(payload, expiresInSec = 60 * 60 * 24 * 30) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body = b64url(JSON.stringify({ ...payload, iat: now, exp: now + expiresInSec }));
+  const sig = crypto.createHmac('sha256', config.jwtSecret).update(`${header}.${body}`).digest('base64url');
+  return `${header}.${body}.${sig}`;
 }
 
-// POST /api/login  { username, password } -> { token, user }
-export function loginHandler(req, res) {
-  if (!authEnabled()) return res.json({ token: 'open', user: 'local' });
-  const { username = '', password = '' } = req.body || {};
-  if (safeEqual(username, config.auth.user) && safeEqual(password, config.auth.pass)) {
-    return res.json({ token: expectedToken(), user: config.auth.user });
+export function verifyJwt(token) {
+  const parts = String(token || '').split('.');
+  if (parts.length !== 3) return null;
+  const [header, body, sig] = parts;
+  const expected = crypto.createHmac('sha256', config.jwtSecret).update(`${header}.${body}`).digest('base64url');
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  try {
+    const claims = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    if (claims.exp && Math.floor(Date.now() / 1000) > claims.exp) return null;
+    return claims;
+  } catch {
+    return null;
   }
-  return res.status(401).json({ error: 'Invalid username or password.' });
 }
 
-// Endpoints reachable without a token so the login page + health check work.
-const OPEN_API_PATHS = new Set(['/api/login', '/api/health']);
+// ── Auth middleware ──────────────────────────────────────────────────────────
+// Endpoints reachable without a token so the SPA + auth flow work.
+const OPEN_API_PATHS = new Set([
+  '/api/health',
+  '/api/auth/login',
+  '/api/auth/register',
+]);
 
-/**
- * Protects the data API with a bearer token. The static SPA (login page + app
- * shell) and the open endpoints above are always served, so the user can reach
- * the login screen; every other /api route needs a valid token.
- */
-export function requireAuth(req, res, next) {
-  if (!authEnabled()) return next(); // gate disabled (local dev)
+export function authenticate(req, res, next) {
   if (!req.path.startsWith('/api')) return next(); // static SPA is public
   if (OPEN_API_PATHS.has(req.path)) return next();
 
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-  if (token && safeEqual(token, expectedToken())) return next();
-  return res.status(401).json({ error: 'Unauthorized' });
+  const claims = verifyJwt(token);
+  if (!claims?.sub) return res.status(401).json({ error: 'Unauthorized' });
+  req.userId = claims.sub;
+  req.userEmail = claims.email;
+  next();
 }

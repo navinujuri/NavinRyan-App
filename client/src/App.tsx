@@ -64,7 +64,7 @@ const PAGES: Record<RouteId, () => JSX.Element | null> = {
 export function App() {
   const [route, navigate] = useHashRoute();
   const data = useData();
-  const { logout, authRequired } = useAuth();
+  const { logout, user } = useAuth();
 
   const header = useMemo(() => {
     if (!data.config || !data.profile) return null;
@@ -98,22 +98,14 @@ export function App() {
               <IconFlame width={13} height={13} />
               RR Progress {Math.round(header.rr.total)}%
             </Pill>
+            {user && <Pill tone="default">{user.displayName}</Pill>}
             <button
-              onClick={data.resetDemo}
-              title="Reset to demo data"
-              className="rounded-lg border border-hair bg-ink-800 p-2 text-fg-faint transition hover:border-hair2 hover:text-fg"
+              onClick={logout}
+              title="Sign out"
+              className="rounded-lg border border-hair bg-ink-800 p-2 text-fg-faint transition hover:border-bad/40 hover:text-bad"
             >
-              <IconRefresh width={15} height={15} />
+              <IconLogout width={15} height={15} />
             </button>
-            {authRequired && (
-              <button
-                onClick={logout}
-                title="Sign out"
-                className="rounded-lg border border-hair bg-ink-800 p-2 text-fg-faint transition hover:border-bad/40 hover:text-bad"
-              >
-                <IconLogout width={15} height={15} />
-              </button>
-            )}
           </div>
         )
       }
