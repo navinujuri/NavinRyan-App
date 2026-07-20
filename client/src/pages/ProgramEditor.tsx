@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useData } from '../state/DataContext';
 import { api } from '../api/client';
 import { Card, CardTitle, Empty, PageHeader, Pill, Segmented } from '../components/ui/primitives';
 import { Modal } from '../components/ui/Modal';
 import {
   IconCalendar,
+  IconChevronDown,
   IconCheck,
   IconCopy,
   IconDumbbell,
@@ -444,6 +445,77 @@ function ProgramMetaForm({ programId, initial }: { programId: string; initial: {
   );
 }
 
+// ── "New phase" dropdown menu ─────────────────────────────────────────────────
+// Collapses the four "create a phase" actions into one menu so the Phases bar
+// stays uncluttered. Closes on outside-click or Escape.
+function NewPhaseMenu({
+  busy,
+  onBlank,
+  onCloneRR,
+  onClonePhase0,
+  onImport,
+}: {
+  busy: boolean;
+  onBlank: () => void;
+  onCloneRR: () => void;
+  onClonePhase0: () => void;
+  onImport: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const Item = ({ label, hint, icon, onClick }: { label: string; hint: string; icon: ReactNode; onClick: () => void }) => (
+    <button
+      role="menuitem"
+      className="flex w-full items-start gap-2.5 rounded-lg px-3 py-2 text-left transition hover:bg-ink-750"
+      onClick={() => { setOpen(false); onClick(); }}
+    >
+      <span className="mt-0.5 text-fg-faint">{icon}</span>
+      <span>
+        <span className="block text-sm font-medium text-fg">{label}</span>
+        <span className="block text-xs text-fg-faint">{hint}</span>
+      </span>
+    </button>
+  );
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        className="btn-primary"
+        disabled={busy}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <IconPlus width={15} height={15} /> New phase
+        <IconChevronDown width={14} height={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div role="menu" className="absolute left-0 z-30 mt-1.5 w-64 animate-fade-in rounded-xl border border-hair2 bg-ink-850 p-1.5 shadow-card">
+          <Item label="Blank phase" hint="Start from scratch" icon={<IconPlus width={16} height={16} />} onClick={onBlank} />
+          <Item label="Copy RR template" hint="Phase 1 — the full RR program" icon={<IconCopy width={16} height={16} />} onClick={onCloneRR} />
+          <Item label="Copy Phase 0 template" hint="8-week beginner on-ramp" icon={<IconCopy width={16} height={16} />} onClick={onClonePhase0} />
+          <Item label="Import from JSON…" hint="Paste a phase definition" icon={<IconEdit width={16} height={16} />} onClick={onImport} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main editor ──────────────────────────────────────────────────────────────
 export function ProgramEditor() {
   const { config, programs, activeProgramId, reload } = useData();
@@ -500,19 +572,14 @@ export function ProgramEditor() {
             );
           })}
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button className="btn-ghost" disabled={busy} onClick={() => run(async () => { const p = await api.createProgram({ name: 'New Phase' }); await api.activateProgram((p as { id: string }).id); })}>
-            <IconPlus width={15} height={15} /> Blank phase
-          </button>
-          <button className="btn-ghost" disabled={busy} onClick={() => run(async () => { const p = await api.createProgram({ name: 'Copy of template', clone: true }); await api.activateProgram((p as { id: string }).id); })}>
-            <IconPlus width={15} height={15} /> Copy RR template
-          </button>
-          <button className="btn-ghost" disabled={busy} onClick={() => run(async () => { const p = await api.createProgram({ template: 'phase0' }); await api.activateProgram((p as { id: string }).id); })}>
-            <IconPlus width={15} height={15} /> Copy Phase 0 template
-          </button>
-          <button className="btn-ghost" disabled={busy} onClick={() => setImportOpen(true)}>
-            <IconPlus width={15} height={15} /> Import from JSON
-          </button>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <NewPhaseMenu
+            busy={busy}
+            onBlank={() => run(async () => { const p = await api.createProgram({ name: 'New Phase' }); await api.activateProgram((p as { id: string }).id); })}
+            onCloneRR={() => run(async () => { const p = await api.createProgram({ name: 'Copy of template', clone: true }); await api.activateProgram((p as { id: string }).id); })}
+            onClonePhase0={() => run(async () => { const p = await api.createProgram({ template: 'phase0' }); await api.activateProgram((p as { id: string }).id); })}
+            onImport={() => setImportOpen(true)}
+          />
           <button className="btn-ghost" disabled={busy || !active} onClick={() => setExportOpen(true)}>
             <IconExport width={15} height={15} /> Export phase
           </button>

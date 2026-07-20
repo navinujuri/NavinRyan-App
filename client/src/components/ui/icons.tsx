@@ -86,6 +86,9 @@ export const IconWeight = (p: IconProps) => (
 export const IconMenu = (p: IconProps) => (
   <svg {...base(p)}><path d="M4 6h16M4 12h16M4 18h16" /></svg>
 );
+export const IconChevronDown = (p: IconProps) => (
+  <svg {...base(p)}><path d="m6 9 6 6 6-6" /></svg>
+);
 export const IconLogout = (p: IconProps) => (
   <svg {...base(p)}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
 );
