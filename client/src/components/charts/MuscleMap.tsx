@@ -15,6 +15,7 @@ import Model, { type IExerciseData, type IMuscleStats, type Muscle } from 'react
 export interface MuscleDatum {
   intensity: number; // 0..1
   label: string; // e.g. "3.3k volume"
+  value?: number; // raw volume (used by the detailed map to sum shared regions)
 }
 
 const MUSCLE_TO_SLUG: Record<string, Muscle> = {

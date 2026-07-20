@@ -40,7 +40,7 @@ export function Muscles() {
   const mapData: Record<string, MuscleDatum> = {};
   for (const s of summaries) {
     const v = valueFor(s);
-    mapData[s.muscle] = { intensity: v / mapMax, label: v > 0 ? `${fmtVolume(v)} volume` : 'No volume yet' };
+    mapData[s.muscle] = { intensity: v / mapMax, label: v > 0 ? `${fmtVolume(v)} volume` : 'No volume yet', value: v };
   }
 
   const trendData = muscleTrend(workouts, config, muscle);

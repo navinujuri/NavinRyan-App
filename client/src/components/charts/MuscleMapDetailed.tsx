@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BodyChart, MUSCLE_MAP, ViewSide, type BodyState, type MuscleId } from 'body-muscles';
 import type { MuscleDatum } from './MuscleMap';
+import { fmtVolume } from '../../lib/format';
 
 // Simple gym names for every library region, replacing its scientific labels
 // (e.g. "Left Trapezius (Upper)" → "Upper Traps", "Gluteus Maximus" → "Glutes").
@@ -83,10 +84,11 @@ const MUSCLE_TO_SLUGS: Record<string, MuscleId[]> = {
   Calves: ['calves-gastroc-medial-left', 'calves-gastroc-lateral-left', 'calves-soleus-left', 'calves-gastroc-medial-right', 'calves-gastroc-lateral-right', 'calves-soleus-right'],
 };
 
-// First muscle that claims each slug — used for the tap readout.
-const SLUG_TO_MUSCLE: Record<string, string> = {};
+// Every muscle that maps to each slug — so the tap readout can sum the full
+// combined volume of a shared region (e.g. Side + Front delts on the cap).
+const SLUG_TO_MUSCLES: Record<string, string[]> = {};
 for (const [muscle, slugs] of Object.entries(MUSCLE_TO_SLUGS)) {
-  for (const s of slugs) if (!(s in SLUG_TO_MUSCLE)) SLUG_TO_MUSCLE[s] = muscle;
+  for (const s of slugs) (SLUG_TO_MUSCLES[s] ??= []).push(muscle);
 }
 
 // data intensity is 0..1; body-muscles wants 0..10. Muscles that share a region
@@ -144,8 +146,9 @@ export function MuscleMapDetailed({ data }: { data: Record<string, MuscleDatum> 
   const [selected, setSelected] = useState<{ muscle: string; label: string } | null>(null);
 
   const onPick = (id: MuscleId) => {
-    const tracked = SLUG_TO_MUSCLE[id];
-    const label = tracked ? (data[tracked]?.label ?? 'No volume yet') : 'Not tracked';
+    const muscles = SLUG_TO_MUSCLES[id] ?? [];
+    const total = muscles.reduce((sum, m) => sum + (data[m]?.value ?? 0), 0);
+    const label = !muscles.length ? 'Not tracked' : total > 0 ? `${fmtVolume(total)} volume` : 'No volume yet';
     setSelected({ muscle: friendlyName(id), label });
   };
 
