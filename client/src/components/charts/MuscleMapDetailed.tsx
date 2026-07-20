@@ -6,7 +6,11 @@ import type { MuscleDatum } from './MuscleMap';
 // (e.g. "Left Trapezius (Upper)" → "Upper Traps", "Gluteus Maximus" → "Glutes").
 // Keyed by the region base (id minus the trailing -left/-right).
 const FRIENDLY: Record<string, string> = {
-  'shoulder-front': 'Front Delts', 'shoulder-side': 'Side Delts', 'deltoid-rear': 'Rear Delts',
+  // Front view: the library's `shoulder-side` is the prominent outer shoulder
+  // cap (reads as the front delt) and `shoulder-front` is the high/inner strip
+  // by the neck — so we label them by how they read on the figure, not by the
+  // library's ids.
+  'shoulder-front': 'Side Delts', 'shoulder-side': 'Front Delts', 'deltoid-rear': 'Rear Delts',
   'chest-upper': 'Upper Chest', 'chest-lower': 'Lower Chest',
   'traps-upper': 'Upper Traps', 'traps-mid': 'Mid Traps', 'traps-lower': 'Lower Traps',
   'lats-upper': 'Upper Lats', 'lats-mid': 'Mid Lats', 'lats-lower': 'Lower Lats',
@@ -44,8 +48,10 @@ for (const def of MUSCLE_MAP) (def as { name: string }).name = friendlyName(def.
 // Our muscle groups (12 built-in + custom) → body-muscles slug ids.
 const MUSCLE_TO_SLUGS: Record<string, MuscleId[]> = {
   // Shoulders
-  'Side Delts': ['shoulder-side-left', 'shoulder-side-right'],
-  'Front Delts': ['shoulder-front-left', 'shoulder-front-right'],
+  // Slugs chosen to match how the regions read on the figure (see FRIENDLY):
+  // outer cap = Front Delts, high/inner strip = Side Delts.
+  'Side Delts': ['shoulder-front-left', 'shoulder-front-right'],
+  'Front Delts': ['shoulder-side-left', 'shoulder-side-right'],
   'Rear Delts': ['deltoid-rear-left', 'deltoid-rear-right'],
   'External Rotators': ['deltoid-rear-left', 'deltoid-rear-right'], // no rotator-cuff shape → nearest
   // Chest
@@ -83,17 +89,19 @@ for (const [muscle, slugs] of Object.entries(MUSCLE_TO_SLUGS)) {
   for (const s of slugs) if (!(s in SLUG_TO_MUSCLE)) SLUG_TO_MUSCLE[s] = muscle;
 }
 
-// data intensity is 0..1; body-muscles wants 0..10. Keep any trained muscle ≥1.
+// data intensity is 0..1; body-muscles wants 0..10. Muscles that share a region
+// (e.g. Rear Delts + External Rotators) SUM so overlapping volume adds up, then
+// we scale to 0..10 (min 1 for any trained region, capped at 10).
 function buildBodyState(data: Record<string, MuscleDatum>): BodyState {
-  const state: BodyState = {};
+  const raw: Record<string, number> = {};
   for (const [muscle, d] of Object.entries(data)) {
     const slugs = MUSCLE_TO_SLUGS[muscle];
     if (!slugs || !d.intensity) continue;
-    const intensity = Math.max(1, Math.round(d.intensity * 10));
-    for (const s of slugs) {
-      const prev = state[s]?.intensity ?? 0;
-      state[s] = { intensity: Math.max(prev, intensity), selected: false };
-    }
+    for (const s of slugs) raw[s] = (raw[s] ?? 0) + d.intensity;
+  }
+  const state: BodyState = {};
+  for (const [s, v] of Object.entries(raw)) {
+    state[s] = { intensity: Math.min(10, Math.max(1, Math.round(v * 10))), selected: false };
   }
   return state;
 }
