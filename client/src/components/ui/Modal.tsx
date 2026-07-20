@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { IconClose } from './icons';
 
 export function Modal({
@@ -29,7 +30,11 @@ export function Modal({
 
   if (!open) return null;
 
-  return (
+  // Portal to <body> so the modal's `position: fixed` is relative to the
+  // viewport, not to any transformed ancestor (e.g. the page-transition
+  // wrapper in Layout, whose lingering `transform` would otherwise become the
+  // containing block and push the panel off-screen behind the backdrop).
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div
@@ -48,6 +53,7 @@ export function Modal({
         <div className="max-h-[70vh] overflow-y-auto px-5 py-5">{children}</div>
         {footer && <div className="flex justify-end gap-2 border-t border-hair px-5 py-4">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
