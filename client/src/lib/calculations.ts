@@ -82,11 +82,30 @@ export interface ExerciseProgression {
   direction: 'up' | 'down' | 'flat' | 'new' | 'none';
 }
 
-/** Collapse workout rows for one exercise into per-date sessions. */
-export function sessionsFor(logs: WorkoutLog[], exerciseId: string): Session[] {
+/**
+ * Normalized identity of a movement, derived from its display name. Exercises
+ * that share this key — e.g. "Seated Leg Curl" programmed on two different days,
+ * or the "Single Arm" / "Single-Arm" spelling variants — are treated as ONE
+ * movement so their history, log-screen prefill and progression are unified.
+ */
+export function movementKey(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+/** Every exercise id that shares a movement with `exercise` (including itself). */
+export function movementExerciseIds(exercise: ExerciseTemplate, all: ExerciseTemplate[]): string[] {
+  const key = movementKey(exercise.name);
+  const ids = all.filter((e) => movementKey(e.name) === key).map((e) => e.id);
+  return ids.length ? ids : [exercise.id];
+}
+
+/** Collapse workout rows into per-date sessions — for a single exercise id, or
+ *  for the set of ids that make up one movement (unified history). */
+export function sessionsFor(logs: WorkoutLog[], exerciseId: string | string[]): Session[] {
+  const ids = Array.isArray(exerciseId) ? new Set(exerciseId) : new Set([exerciseId]);
   const byDate = new Map<string, Session>();
   for (const l of logs) {
-    if (l.exerciseId !== exerciseId) continue;
+    if (!ids.has(l.exerciseId)) continue;
     const g = byDate.get(l.date) || { date: l.date, weight: 0, reps: 0, sets: 0, volume: 0 };
     g.volume += l.volume;
     g.sets += l.sets;
@@ -102,8 +121,12 @@ export function sessionsFor(logs: WorkoutLog[], exerciseId: string): Session[] {
 export function exerciseProgression(
   logs: WorkoutLog[],
   exercise: ExerciseTemplate,
+  allExercises?: ExerciseTemplate[],
 ): ExerciseProgression {
-  const sessions = sessionsFor(logs, exercise.id);
+  // When the full exercise list is supplied, unify history across every day
+  // that programs the same movement; otherwise fall back to this row alone.
+  const ids = allExercises ? movementExerciseIds(exercise, allExercises) : exercise.id;
+  const sessions = sessionsFor(logs, ids);
   const current = sessions.at(-1) ?? null;
   const previous = sessions.length >= 2 ? sessions[sessions.length - 2] : null;
 
@@ -131,9 +154,25 @@ export function allProgressions(
   logs: WorkoutLog[],
   exercises: ExerciseTemplate[],
 ): ExerciseProgression[] {
+  // One entry per exercise ROW, but each carries the unified movement history.
+  // The day-scoped Progression view relies on the per-row `.day`; callers that
+  // want one row per movement should pipe through dedupeByMovement().
   return exercises
-    .map((e) => exerciseProgression(logs, e))
+    .map((e) => exerciseProgression(logs, e, exercises))
     .filter((p) => p.sessions.length > 0);
+}
+
+/** Keep one progression per movement (first occurrence wins). Use wherever a
+ *  movement should be counted once — analytics, RR-progress, "all lifts" lists —
+ *  rather than once per day it appears on. */
+export function dedupeByMovement(progs: ExerciseProgression[]): ExerciseProgression[] {
+  const seen = new Set<string>();
+  return progs.filter((p) => {
+    const k = movementKey(p.exercise.name);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -257,7 +296,7 @@ export function analytics(
   profile: Profile,
   config: AppConfig,
 ): Analytics {
-  const progs = allProgressions(logs, config.exercises);
+  const progs = dedupeByMovement(allProgressions(logs, config.exercises));
 
   // Strongest = heaviest current top-set weight.
   let strongest: Analytics['strongest'] = null;
@@ -348,7 +387,7 @@ export function ryanReynoldsProgress(
   const bodyFat = bfSpan > 0 ? clamp01((startBF - currentBF) / bfSpan) : 0;
 
   // Strength progress: mean first→latest volume gain, 30% gain = 100%.
-  const progs = allProgressions(logs, config.exercises).filter((p) => p.sessions.length >= 2);
+  const progs = dedupeByMovement(allProgressions(logs, config.exercises)).filter((p) => p.sessions.length >= 2);
   const gains = progs
     .map((p) => {
       const first = p.sessions[0].volume;

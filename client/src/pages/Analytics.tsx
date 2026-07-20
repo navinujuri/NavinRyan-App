@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import { useData } from '../state/DataContext';
-import { allProgressions, analytics, muscleSummaries } from '../lib/calculations';
+import { allProgressions, analytics, dedupeByMovement, muscleSummaries } from '../lib/calculations';
 import { fmt, fmtDateFull } from '../lib/format';
 import { Card, CardTitle, Empty, PageHeader } from '../components/ui/primitives';
 import { BarRank } from '../components/charts/BarRank';
@@ -63,7 +63,7 @@ export function Analytics() {
 
   const topImproved = useMemo(() => {
     if (!config) return [];
-    return allProgressions(workouts, config.exercises)
+    return dedupeByMovement(allProgressions(workouts, config.exercises))
       .filter((p) => p.sessions.length >= 2 && p.sessions[0].volume > 0)
       .map((p) => ({
         label: p.exercise.name,

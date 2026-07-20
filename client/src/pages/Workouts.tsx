@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useData } from '../state/DataContext';
-import { sessionsFor } from '../lib/calculations';
+import { movementExerciseIds, sessionsFor } from '../lib/calculations';
 import { daysBetween, fmtDate, fmtDateFull, fmtVolume, todayISO } from '../lib/format';
 import { Card, PageHeader, Pill } from '../components/ui/primitives';
 import { IconCalendar, IconCheck, IconDumbbell, IconFlame, IconTrash } from '../components/ui/icons';
@@ -16,7 +16,7 @@ function ExerciseLogRow({
   exercise: ExerciseTemplate;
   date: string;
 }) {
-  const { workouts, addWorkout, updateWorkout, deleteWorkout } = useData();
+  const { config, workouts, addWorkout, updateWorkout, deleteWorkout } = useData();
 
   const existing = useMemo(
     () => workouts.find((w) => w.exerciseId === exercise.id && w.date === date),
@@ -24,10 +24,13 @@ function ExerciseLogRow({
   );
 
   // Most recent session strictly before the selected date (progression hint).
+  // History is unified across every day that programs the same movement, so the
+  // hint reflects the last time you did this lift *anywhere*, not just this day.
   const lastSession = useMemo(() => {
-    const sessions = sessionsFor(workouts, exercise.id).filter((s) => s.date < date);
+    const ids = config ? movementExerciseIds(exercise, config.exercises) : exercise.id;
+    const sessions = sessionsFor(workouts, ids).filter((s) => s.date < date);
     return sessions.at(-1) ?? null;
-  }, [workouts, exercise.id, date]);
+  }, [config, workouts, exercise, date]);
 
   const [weight, setWeight] = useState(String(existing?.weight ?? lastSession?.weight ?? ''));
   const [reps, setReps] = useState(String(existing?.reps ?? lastSession?.reps ?? exercise.repRange[1]));

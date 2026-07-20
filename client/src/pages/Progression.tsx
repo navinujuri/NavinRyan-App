@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useData } from '../state/DataContext';
-import { allProgressions, type ExerciseProgression } from '../lib/calculations';
+import { allProgressions, dedupeByMovement, type ExerciseProgression } from '../lib/calculations';
 import { fmt, fmtDate, fmtDateFull, fmtVolume } from '../lib/format';
 import { CHART } from '../theme/chart';
 import { Card, CardTitle, Delta, Empty, PageHeader, Pill, Segmented } from '../components/ui/primitives';
@@ -45,8 +45,11 @@ export function Progression() {
   ];
   const activeDay = dayOptions.find((d) => d.key === day)!;
 
-  // Scope everything to the selected training day.
-  const dayProgs = day === 'all' ? progressions : progressions.filter((p) => p.exercise.day === day);
+  // Scope to the selected training day, then collapse repeated movements to a
+  // single row (each carries the unified cross-day history).
+  const dayProgs = dedupeByMovement(
+    day === 'all' ? progressions : progressions.filter((p) => p.exercise.day === day),
+  );
 
   const selected = dayProgs.find((p) => p.exercise.id === selectedId) ?? dayProgs[0] ?? null;
 

@@ -11,6 +11,7 @@ import {
   allProgressions,
   analytics,
   avgRating,
+  dedupeByMovement,
   muscleSummaries,
   programState,
   ryanReynoldsProgress,
@@ -70,7 +71,7 @@ export function buildReport(b: Bundle): string {
   const bfChange = first && last ? last.bodyFat - first.bodyFat : 0;
 
   // Top improved exercises.
-  const improved = allProgressions(b.workouts, b.config.exercises)
+  const improved = dedupeByMovement(allProgressions(b.workouts, b.config.exercises))
     .filter((p) => p.sessions.length >= 2 && p.sessions[0].volume > 0)
     .map((p) => ({
       name: p.exercise.name,
