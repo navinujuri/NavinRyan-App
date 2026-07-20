@@ -71,7 +71,7 @@ export function Muscles() {
           <Card className="mb-4">
             <CardTitle
               title="Muscle Map"
-              subtitle={`Color intensity = ${range === 'current' ? "this week's" : range === 'monthly' ? 'monthly' : 'all-time'} volume · hover a muscle`}
+              subtitle={`Color intensity = ${range === 'current' ? "this week's" : range === 'monthly' ? 'monthly' : 'all-time'} volume · tap a muscle`}
               icon={<IconMuscle width={16} height={16} />}
             />
             <MuscleMap data={mapData} />
