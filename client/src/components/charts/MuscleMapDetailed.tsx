@@ -6,10 +6,10 @@ import type { MuscleDatum } from './MuscleMap';
 // (e.g. "Left Trapezius (Upper)" → "Upper Traps", "Gluteus Maximus" → "Glutes").
 // Keyed by the region base (id minus the trailing -left/-right).
 const FRIENDLY: Record<string, string> = {
-  // Front view: `shoulder-side` is the outer/lateral shoulder cap (= side delt);
-  // `shoulder-front` is the upper-inner part by the collarbone (= front/anterior
-  // delt). Matches real anatomy — the outer round cap is the side delt.
-  'shoulder-front': 'Front Delts', 'shoulder-side': 'Side Delts', 'deltoid-rear': 'Rear Delts',
+  // Front view: the outer round cap (`shoulder-side`) is one shape for the whole
+  // visible deltoid (front + side can't be separated here); the strip beside the
+  // neck (`shoulder-front`) is really the front-view upper trap, not a delt.
+  'shoulder-front': 'Upper Traps', 'shoulder-side': 'Side + Front Delts', 'deltoid-rear': 'Rear Delts',
   'chest-upper': 'Upper Chest', 'chest-lower': 'Lower Chest',
   'traps-upper': 'Upper Traps', 'traps-mid': 'Mid Traps', 'traps-lower': 'Lower Traps',
   'lats-upper': 'Upper Lats', 'lats-mid': 'Mid Lats', 'lats-lower': 'Lower Lats',
@@ -47,8 +47,11 @@ for (const def of MUSCLE_MAP) (def as { name: string }).name = friendlyName(def.
 // Our muscle groups (12 built-in + custom) → body-muscles slug ids.
 const MUSCLE_TO_SLUGS: Record<string, MuscleId[]> = {
   // Shoulders
-  'Side Delts': ['shoulder-side-left', 'shoulder-side-right'], // outer/lateral cap
-  'Front Delts': ['shoulder-front-left', 'shoulder-front-right'], // upper-inner by collarbone
+  // The figure's outer shoulder cap is a single deltoid shape, so both front and
+  // side delts light it (they can't be separated); the strip by the neck is the
+  // front-view upper trap (see Traps / Upper Traps below), not the front delt.
+  'Side Delts': ['shoulder-side-left', 'shoulder-side-right'],
+  'Front Delts': ['shoulder-side-left', 'shoulder-side-right'],
   'Rear Delts': ['deltoid-rear-left', 'deltoid-rear-right'],
   'External Rotators': ['deltoid-rear-left', 'deltoid-rear-right'], // no rotator-cuff shape → nearest
   // Chest
@@ -58,8 +61,8 @@ const MUSCLE_TO_SLUGS: Record<string, MuscleId[]> = {
   // Back / traps
   Lats: ['lats-upper-left', 'lats-mid-left', 'lats-lower-left', 'lats-upper-right', 'lats-mid-right', 'lats-lower-right'],
   'Mid Back': ['traps-mid-left', 'traps-mid-right', 'lats-mid-left', 'lats-mid-right'],
-  Traps: ['traps-upper-left', 'traps-mid-left', 'traps-lower-left', 'traps-upper-right', 'traps-mid-right', 'traps-lower-right'],
-  'Upper Traps': ['traps-upper-left', 'traps-upper-right'],
+  Traps: ['traps-upper-left', 'traps-mid-left', 'traps-lower-left', 'traps-upper-right', 'traps-mid-right', 'traps-lower-right', 'shoulder-front-left', 'shoulder-front-right'],
+  'Upper Traps': ['traps-upper-left', 'traps-upper-right', 'shoulder-front-left', 'shoulder-front-right'], // incl. front-view trap beside the neck
   'Middle Traps': ['traps-mid-left', 'traps-mid-right'],
   'Lower Traps': ['traps-lower-left', 'traps-lower-right'],
   'Levator Scapulae': ['nape'], // no dedicated shape → nape
