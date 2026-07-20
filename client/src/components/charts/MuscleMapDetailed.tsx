@@ -1,6 +1,37 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BodyChart, ViewSide, type BodyState, type MuscleId } from 'body-muscles';
+import { BodyChart, MUSCLE_MAP, ViewSide, type BodyState, type MuscleId } from 'body-muscles';
 import type { MuscleDatum } from './MuscleMap';
+
+// Simple gym names for every library region, replacing its scientific labels
+// (e.g. "Left Trapezius (Upper)" → "Upper Traps", "Gluteus Maximus" → "Glutes").
+// Keyed by the region base (id minus the trailing -left/-right).
+const FRIENDLY: Record<string, string> = {
+  'shoulder-front': 'Front Delts', 'shoulder-side': 'Side Delts', 'deltoid-rear': 'Rear Delts',
+  'chest-upper': 'Upper Chest', 'chest-lower': 'Lower Chest',
+  'traps-upper': 'Upper Traps', 'traps-mid': 'Mid Traps', 'traps-lower': 'Lower Traps',
+  'lats-upper': 'Upper Lats', 'lats-mid': 'Mid Lats', 'lats-lower': 'Lower Lats',
+  biceps: 'Biceps', 'triceps-long': 'Triceps', 'triceps-lateral': 'Triceps',
+  forearm: 'Forearms', 'forearm-flexors': 'Forearms', 'forearm-extensors': 'Forearms',
+  'abs-upper': 'Upper Abs', 'abs-lower': 'Lower Abs', obliques: 'Obliques', 'serratus-anterior': 'Serratus',
+  'hip-flexor': 'Hip Flexors', quads: 'Quads', adductors: 'Inner Thighs',
+  'hamstrings-medial': 'Hamstrings', 'hamstrings-lateral': 'Hamstrings',
+  'gluteus-maximus': 'Glutes', 'gluteus-medius': 'Glutes',
+  'calves-gastroc-medial': 'Calves', 'calves-gastroc-lateral': 'Calves', 'calves-soleus': 'Calves',
+  'tibialis-anterior': 'Shins', knee: 'Knee', 'knee-back': 'Knee', elbow: 'Elbow',
+  hand: 'Hand', 'hand-back': 'Hand', foot: 'Foot', 'foot-back': 'Foot',
+  neck: 'Neck', nape: 'Neck', head: 'Head', 'head-back': 'Head', face: 'Face',
+  spine: 'Spine', 'lower-back-erectors': 'Lower Back', 'lower-back-ql': 'Lower Back',
+};
+
+function friendlyName(id: string): string {
+  const base = id.replace(/-(left|right)$/, '');
+  return FRIENDLY[base] ?? base.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// Rewrite the library's built-in names (used for its native <title> tooltips and
+// click payloads) to the simple names above. MUSCLE_MAP entries are shared by
+// reference with the per-view arrays the chart renders, so this affects both.
+for (const def of MUSCLE_MAP) (def as { name: string }).name = friendlyName(def.id);
 
 /**
  * PROTOTYPE — detailed anatomical muscle map on the `body-muscles` library
@@ -105,9 +136,9 @@ export function MuscleMapDetailed({ data }: { data: Record<string, MuscleDatum> 
   const [selected, setSelected] = useState<{ muscle: string; label: string } | null>(null);
 
   const onPick = (id: MuscleId) => {
-    const muscle = SLUG_TO_MUSCLE[id];
-    if (muscle) setSelected({ muscle, label: data[muscle]?.label ?? 'No volume yet' });
-    else setSelected({ muscle: id.replace(/-/g, ' '), label: 'Not tracked' });
+    const tracked = SLUG_TO_MUSCLE[id];
+    const label = tracked ? (data[tracked]?.label ?? 'No volume yet') : 'Not tracked';
+    setSelected({ muscle: friendlyName(id), label });
   };
 
   return (
