@@ -8,6 +8,7 @@ import { BarRank } from '../components/charts/BarRank';
 import { TrendChart } from '../components/charts/TrendChart';
 import { Sparkline } from '../components/charts/Sparkline';
 import { MuscleMap, type MuscleDatum } from '../components/charts/MuscleMap';
+import { MuscleMapDetailed } from '../components/charts/MuscleMapDetailed';
 import { IconMuscle } from '../components/ui/icons';
 import type { MuscleGroup } from '../types';
 
@@ -17,6 +18,7 @@ export function Muscles() {
   const { config, workouts } = useData();
   const [range, setRange] = useState<Range>('monthly');
   const [muscle, setMuscle] = useState<MuscleGroup>('Side Delts');
+  const [mapStyle, setMapStyle] = useState<'classic' | 'detailed'>('classic');
 
   const summaries = useMemo(
     () => (config ? muscleSummaries(workouts, config) : []),
@@ -73,8 +75,18 @@ export function Muscles() {
               title="Muscle Map"
               subtitle={`Color intensity = ${range === 'current' ? "this week's" : range === 'monthly' ? 'monthly' : 'all-time'} volume · tap a muscle`}
               icon={<IconMuscle width={16} height={16} />}
+              right={
+                <Segmented
+                  value={mapStyle}
+                  onChange={setMapStyle}
+                  options={[
+                    { value: 'classic', label: 'Classic' },
+                    { value: 'detailed', label: 'Detailed (beta)' },
+                  ]}
+                />
+              }
             />
-            <MuscleMap data={mapData} />
+            {mapStyle === 'detailed' ? <MuscleMapDetailed data={mapData} /> : <MuscleMap data={mapData} />}
           </Card>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
