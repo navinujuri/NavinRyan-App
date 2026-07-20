@@ -7,6 +7,7 @@ import { Card, CardTitle, Delta, Empty, PageHeader, Segmented } from '../compone
 import { BarRank } from '../components/charts/BarRank';
 import { TrendChart } from '../components/charts/TrendChart';
 import { Sparkline } from '../components/charts/Sparkline';
+import { MuscleMap, type MuscleDatum } from '../components/charts/MuscleMap';
 import { IconMuscle } from '../components/ui/icons';
 import type { MuscleGroup } from '../types';
 
@@ -28,10 +29,17 @@ export function Muscles() {
 
   if (!config) return null;
 
-  const rankData = summaries.map((s) => ({
-    label: s.muscle,
-    value: range === 'current' ? s.current : range === 'monthly' ? s.monthly : s.total,
-  }));
+  const valueFor = (s: (typeof summaries)[number]) =>
+    range === 'current' ? s.current : range === 'monthly' ? s.monthly : s.total;
+
+  const rankData = summaries.map((s) => ({ label: s.muscle, value: valueFor(s) }));
+
+  const mapMax = Math.max(1, ...summaries.map(valueFor));
+  const mapData: Record<string, MuscleDatum> = {};
+  for (const s of summaries) {
+    const v = valueFor(s);
+    mapData[s.muscle] = { intensity: v / mapMax, label: v > 0 ? `${fmtVolume(v)} volume` : 'No volume yet' };
+  }
 
   const trendData = muscleTrend(workouts, config, muscle);
   const priorities = new Set(config.program.priorities);
@@ -60,6 +68,15 @@ export function Muscles() {
         <Empty icon={<IconMuscle width={28} height={28} />} title="No volume logged yet" hint="Log workouts to see muscle-group volume build up." />
       ) : (
         <>
+          <Card className="mb-4">
+            <CardTitle
+              title="Muscle Map"
+              subtitle={`Color intensity = ${range === 'current' ? "this week's" : range === 'monthly' ? 'monthly' : 'all-time'} volume · hover a muscle`}
+              icon={<IconMuscle width={16} height={16} />}
+            />
+            <MuscleMap data={mapData} />
+          </Card>
+
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card>
               <CardTitle
