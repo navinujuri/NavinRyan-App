@@ -1,6 +1,7 @@
 import express from 'express';
 import { getStore } from '../storage/index.js';
 import { seedTemplateProgram, createEmptyProgram, importProgram } from '../services/programs.js';
+import { PHASE0_TEMPLATE } from '../domain/phase0.js';
 
 const num = (v, d = 0) => (v === undefined || v === null || v === '' ? d : Number(v));
 
@@ -20,15 +21,23 @@ programsRouter.get('/', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Create a program — empty, or a clone of the built-in template (UUID ids).
+// Create a program — empty, a clone of the built-in Phase 1 RR template, or a
+// copy of a named built-in template (currently "phase0"). All get UUID ids.
 programsRouter.post('/', async (req, res, next) => {
   try {
     const store = await getStore();
     const existing = await store.list('programs', { userId: req.userId });
     const order = existing.length;
-    const id = req.body?.clone
-      ? await seedTemplateProgram(store, req.userId, { slugExerciseIds: false, isActive: false, order })
-      : await createEmptyProgram(store, req.userId, String(req.body?.name || 'New Program'), order);
+    let id;
+    if (req.body?.template === 'phase0') {
+      // Seed the beginner Phase 0 starter via the import pipeline (non-active;
+      // the client activates it, mirroring the RR-template clone flow).
+      id = await importProgram(store, req.userId, PHASE0_TEMPLATE, { activate: false });
+    } else if (req.body?.clone) {
+      id = await seedTemplateProgram(store, req.userId, { slugExerciseIds: false, isActive: false, order });
+    } else {
+      id = await createEmptyProgram(store, req.userId, String(req.body?.name || 'New Program'), order);
+    }
     if (req.body?.name && req.body?.clone) {
       await store.update('programs', { id, userId: req.userId }, { name: String(req.body.name) });
     }

@@ -122,7 +122,7 @@ export const api = {
   deleteRest: (id: string) => request<void>(`/rest/${id}`, { method: 'DELETE' }),
 
   // programs / phases
-  createProgram: (body: { name?: string; clone?: boolean }) =>
+  createProgram: (body: { name?: string; clone?: boolean; template?: 'phase0' }) =>
     request<ProgramMeta>('/programs', { method: 'POST', body: JSON.stringify(body) }),
   updateProgram: (id: string, patch: Partial<ProgramMeta>) =>
     request<ProgramMeta>(`/programs/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),

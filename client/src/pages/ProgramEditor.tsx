@@ -507,6 +507,9 @@ export function ProgramEditor() {
           <button className="btn-ghost" disabled={busy} onClick={() => run(async () => { const p = await api.createProgram({ name: 'Copy of template', clone: true }); await api.activateProgram((p as { id: string }).id); })}>
             <IconPlus width={15} height={15} /> Copy RR template
           </button>
+          <button className="btn-ghost" disabled={busy} onClick={() => run(async () => { const p = await api.createProgram({ template: 'phase0' }); await api.activateProgram((p as { id: string }).id); })}>
+            <IconPlus width={15} height={15} /> Copy Phase 0 template
+          </button>
           <button className="btn-ghost" disabled={busy} onClick={() => setImportOpen(true)}>
             <IconPlus width={15} height={15} /> Import from JSON
           </button>
