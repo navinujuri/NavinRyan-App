@@ -126,13 +126,18 @@ function ExerciseLogRow({
       <div className="mt-2.5 flex items-center justify-between text-xs">
         <span className="text-fg-faint">
           {lastSession
-            ? `Last: ${lastSession.weight}kg × ${lastSession.reps} on ${fmtDate(lastSession.date)}`
+            ? `Last: ${lastSession.weight}kg × ${lastSession.reps} · ${lastSession.sets} ${lastSession.sets === 1 ? 'set' : 'sets'} on ${fmtDate(lastSession.date)}`
             : 'No previous data'}
         </span>
         <span className="font-semibold text-fg-muted">
           Volume <span className="tabular-nums text-fg">{fmtVolume(volume)}</span>
         </span>
       </div>
+      {lastSession?.notes && (
+        <p className="mt-1 text-xs text-fg-faint">
+          <span className="font-medium text-fg-muted">Last note:</span> <span className="italic">“{lastSession.notes}”</span>
+        </p>
+      )}
     </div>
   );
 }
