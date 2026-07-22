@@ -7,7 +7,6 @@ import {
   IconEdit,
   IconExport,
   IconMuscle,
-  IconRadar,
   IconRuler,
   IconTrend,
 } from './components/ui/icons';
@@ -39,7 +38,9 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'muscles', label: 'Muscle Groups', icon: <IconMuscle />, group: 'Training' },
   { id: 'metrics', label: 'Body Metrics', icon: <IconRuler />, group: 'Body' },
   { id: 'photos', label: 'Photo Tracker', icon: <IconCamera />, group: 'Body' },
-  { id: 'physique', label: 'Physique Score', icon: <IconRadar />, group: 'Body' },
+  // Physique Score hidden from the menu. The 'physique' route/page still exists
+  // in App.tsx; it's just no longer reachable from the nav (and #physique now
+  // falls back to the default route, since isRouteId reads this list).
   { id: 'analytics', label: 'Analytics', icon: <IconChart />, group: 'Insights' },
   { id: 'export', label: 'Export & Report', icon: <IconExport />, group: 'Insights' },
 ];
