@@ -68,6 +68,7 @@ export interface Session {
   reps: number; // reps at the top set
   sets: number; // total sets that day
   volume: number; // total volume that day
+  notes?: string; // note from the top-set row that day
 }
 
 export interface ExerciseProgression {
@@ -106,13 +107,15 @@ export function sessionsFor(logs: WorkoutLog[], exerciseId: string | string[]): 
   const byDate = new Map<string, Session>();
   for (const l of logs) {
     if (!ids.has(l.exerciseId)) continue;
-    const g = byDate.get(l.date) || { date: l.date, weight: 0, reps: 0, sets: 0, volume: 0 };
+    const g = byDate.get(l.date) || { date: l.date, weight: 0, reps: 0, sets: 0, volume: 0, notes: '' };
     g.volume += l.volume;
     g.sets += l.sets;
     if (l.weight > g.weight) {
       g.weight = l.weight;
       g.reps = l.reps;
+      g.notes = l.notes ?? '';
     }
+    if (!g.notes && l.notes) g.notes = l.notes;
     byDate.set(l.date, g);
   }
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
@@ -184,6 +187,18 @@ export interface WeekVolumes {
   volumes: Record<string, number>;
 }
 
+// kg-equivalent credited per bodyweight rep (a 12×3 leg raise ≈ a light cable-
+// crunch set). Only used for muscle attribution below — stored volume and the
+// progression charts keep using raw `volume`.
+export const BODYWEIGHT_REP_UNIT = 20;
+
+/** Volume credited to the muscle map / dashboard. Bodyweight sets (logged at 0
+ *  load → volume 0) still trained the muscle, so credit reps × sets × the
+ *  bodyweight unit instead of nothing. */
+function effectiveVolume(l: WorkoutLog): number {
+  return l.volume > 0 ? l.volume : l.reps * l.sets * BODYWEIGHT_REP_UNIT;
+}
+
 /** Attribute a single log's volume across primary + secondary muscles. */
 function attribute(
   target: Record<string, number>,
@@ -207,7 +222,7 @@ export function muscleVolumeByWeek(logs: WorkoutLog[], config: AppConfig): WeekV
     if (!weeks.has(wk)) weeks.set(wk, { weekKey: wk, weekStart: l.date, volumes: {} });
     const bucket = weeks.get(wk)!;
     if (l.date < bucket.weekStart) bucket.weekStart = l.date;
-    attribute(bucket.volumes, ex, l.volume, config.secondaryVolumeWeight);
+    attribute(bucket.volumes, ex, effectiveVolume(l), config.secondaryVolumeWeight);
   }
   return [...weeks.values()].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
 }
@@ -231,7 +246,7 @@ export function muscleSummaries(logs: WorkoutLog[], config: AppConfig): MuscleSu
   const total: Record<string, number> = {};
   for (const l of logs) {
     const ex = byId.get(l.exerciseId);
-    if (ex) attribute(total, ex, l.volume, config.secondaryVolumeWeight);
+    if (ex) attribute(total, ex, effectiveVolume(l), config.secondaryVolumeWeight);
   }
 
   return config.muscleGroups.map((muscle) => {
