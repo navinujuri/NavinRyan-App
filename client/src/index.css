@@ -86,4 +86,99 @@
     @apply inline-flex items-center gap-1.5 rounded-full border border-hair bg-ink-800 px-2.5 py-1
       text-xs font-medium text-fg-muted;
   }
+
+  /* ── Animated streak flame ──────────────────────────────────────────────── */
+  .flame {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+    flex-shrink: 0;
+  }
+  .flame-svg {
+    position: relative;
+    z-index: 1;
+    display: block;
+    overflow: visible;
+  }
+  .flame-outer,
+  .flame-inner {
+    transform-box: fill-box;
+    transform-origin: 50% 95%;
+    will-change: transform, opacity;
+  }
+  .flame-outer {
+    animation: flame-flicker 1.15s ease-in-out infinite;
+  }
+  .flame-inner {
+    animation: flame-flicker-fast 0.85s ease-in-out infinite;
+  }
+  .flame-glow {
+    position: absolute;
+    left: 50%;
+    top: 52%;
+    width: 165%;
+    height: 165%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(
+      closest-side,
+      rgba(249, 115, 22, 0.55),
+      rgba(239, 68, 68, 0.22) 55%,
+      transparent 78%
+    );
+    filter: blur(4px);
+    pointer-events: none;
+    z-index: 0;
+    animation: flame-glow 1.15s ease-in-out infinite;
+  }
+  .ember {
+    position: absolute;
+    bottom: 24%;
+    width: 2px;
+    height: 2px;
+    border-radius: 999px;
+    background: #fde047;
+    box-shadow: 0 0 3px rgba(251, 191, 36, 0.9);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 2;
+    animation: ember-rise 1.8s ease-out infinite;
+  }
+  .ember-1 { left: 44%; animation-delay: 0s; }
+  .ember-2 { left: 56%; animation-delay: 0.6s; }
+  .ember-3 { left: 50%; animation-delay: 1.2s; }
+}
+
+@keyframes flame-flicker {
+  0%, 100% { transform: scaleY(1) scaleX(1) rotate(0deg); opacity: 1; }
+  20% { transform: scaleY(1.08) scaleX(0.96) rotate(-1.5deg); opacity: 0.94; }
+  40% { transform: scaleY(0.97) scaleX(1.04) rotate(1deg); opacity: 1; }
+  60% { transform: scaleY(1.05) scaleX(0.98) rotate(-0.8deg); opacity: 0.97; }
+  80% { transform: scaleY(0.99) scaleX(1.02) rotate(1.2deg); opacity: 1; }
+}
+@keyframes flame-flicker-fast {
+  0%, 100% { transform: scaleY(1) scaleX(1) translateY(0); opacity: 0.95; }
+  25% { transform: scaleY(1.12) scaleX(0.9) translateY(-6%); opacity: 1; }
+  50% { transform: scaleY(0.92) scaleX(1.08) translateY(2%); opacity: 0.85; }
+  75% { transform: scaleY(1.06) scaleX(0.96) translateY(-3%); opacity: 1; }
+}
+@keyframes flame-glow {
+  0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+}
+@keyframes ember-rise {
+  0% { opacity: 0; transform: translateY(0) scale(1); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-180%) scale(0.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flame-outer,
+  .flame-inner,
+  .flame-glow {
+    animation: none !important;
+  }
+  .ember { display: none; }
+  .flame-glow { opacity: 0.8; }
 }

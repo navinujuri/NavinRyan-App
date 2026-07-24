@@ -105,7 +105,7 @@ export function buildReport(b: Bundle): string {
   L.push(`Program: ${b.config.program.name}`);
   L.push(`Timeline: Week ${state.currentWeek}/${state.totalWeeks} · ${state.phase} phase`);
   L.push(`  (${state.daysCompleted} days done, ${state.daysRemaining} remaining)`);
-  L.push(`Ryan Reynolds Progress Score: ${Math.round(rr.total)}%`);
+  L.push(`My Progress Score: ${Math.round(rr.total)}%`);
   L.push('');
 
   L.push('── CURRENT STATUS ──');

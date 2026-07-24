@@ -5,6 +5,7 @@ import type {
   MuscleGroup,
   PhysiqueRating,
   Profile,
+  RestLog,
   WorkoutLog,
 } from '../types';
 import { daysBetween, todayISO, weekKey } from './format';
@@ -57,6 +58,65 @@ export function programState(profile: Profile, program: AppConfig['program']): P
     phaseHint: hint,
     isDeload: currentWeek === program.deloadWeek,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Workout streak
+//   "Don't break the chain" — consecutive training sessions where a normal rest
+//   gap doesn't reset the streak, but a long lay-off does.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Max gap (in days) allowed between two consecutive activity days before the
+ * streak breaks. The program trains ~5 days/week, so a 1–2 day rest gap should
+ * keep the chain alive; a week (or more) off snaps it. One knob to tune the rule.
+ */
+export const STREAK_MAX_GAP_DAYS = 3;
+
+export interface WorkoutStreak {
+  current: number; // activity days in the live run (0 once broken)
+  longest: number; // best such run over all history
+  lastDate: string | null; // most recent activity day (ISO), or null if none
+  daysSinceLast: number; // whole days from lastDate to today (0 if none logged yet is n/a)
+  isActiveToday: boolean; // logged something today
+}
+
+/**
+ * A "session" is any calendar day with ≥1 workout log; a logged rest-day
+ * activity counts too (it's engagement, not a miss). Dates are ISO (YYYY-MM-DD),
+ * which sort lexically in chronological order.
+ */
+export function workoutStreak(workouts: WorkoutLog[], restLogs: RestLog[] = []): WorkoutStreak {
+  const activityDays = new Set<string>();
+  for (const w of workouts) activityDays.add(w.date);
+  for (const r of restLogs) activityDays.add(r.date);
+  const days = [...activityDays].sort();
+
+  if (days.length === 0) {
+    return { current: 0, longest: 0, lastDate: null, daysSinceLast: 0, isActiveToday: false };
+  }
+
+  // Longest run: walk forward, resetting whenever the gap exceeds the tolerance.
+  let longest = 1;
+  let run = 1;
+  for (let i = 1; i < days.length; i += 1) {
+    run = daysBetween(days[i - 1], days[i]) <= STREAK_MAX_GAP_DAYS ? run + 1 : 1;
+    if (run > longest) longest = run;
+  }
+
+  // Current run: walk backward from the most recent day until a gap is too big.
+  let current = 1;
+  for (let i = days.length - 1; i > 0; i -= 1) {
+    if (daysBetween(days[i - 1], days[i]) <= STREAK_MAX_GAP_DAYS) current += 1;
+    else break;
+  }
+
+  const lastDate = days[days.length - 1];
+  const daysSinceLast = Math.max(0, daysBetween(lastDate, todayISO()));
+  // The streak is only "live" if the latest activity is within tolerance of today.
+  if (daysSinceLast > STREAK_MAX_GAP_DAYS) current = 0;
+
+  return { current, longest, lastDate, daysSinceLast, isActiveToday: daysSinceLast === 0 };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
