@@ -4,7 +4,10 @@ import {
   programState,
   ryanReynoldsProgress,
   sortedMeasurements,
+  workoutStreak,
+  type WorkoutStreak,
 } from '../lib/calculations';
+import { Flame } from '../components/ui/Flame';
 import { fmt, fmtDateFull, fmtSigned } from '../lib/format';
 import { CHART } from '../theme/chart';
 import { Card, CardTitle, Delta, PageHeader, Pill, ProgressBar, StatTile } from '../components/ui/primitives';
@@ -73,6 +76,31 @@ function GoalCard({
   );
 }
 
+function StreakTile({ streak, hint }: { streak: WorkoutStreak; hint: string }) {
+  const lit = streak.current > 0;
+  return (
+    <div className={`card relative p-4 ${lit ? 'ring-1 ring-accent/40' : ''}`}>
+      {/* Warm ember wash rising from the base when the streak is alive. */}
+      {lit && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 rounded-b-2xl bg-gradient-to-t from-accent/15 to-transparent" />
+      )}
+      <div className="relative flex items-center justify-between">
+        <span className="text-xs font-medium uppercase tracking-wide text-fg-faint">Workout Streak</span>
+        <Flame size={26} lit={lit} />
+      </div>
+      <div className="relative mt-2 flex items-baseline gap-1.5">
+        <span className={`text-2xl font-bold tabular-nums ${lit ? 'text-fg' : 'text-fg-muted'}`}>
+          {streak.current}
+        </span>
+        <span className="text-sm text-fg-muted">{streak.current === 1 ? 'session' : 'sessions'}</span>
+      </div>
+      <div className="relative mt-1">
+        <span className="text-xs text-fg-faint">{hint}</span>
+      </div>
+    </div>
+  );
+}
+
 function RRBreakdownRow({ label, value, weight }: { label: string; value: number; weight: number }) {
   return (
     <div>
@@ -88,7 +116,7 @@ function RRBreakdownRow({ label, value, weight }: { label: string; value: number
 }
 
 export function Dashboard() {
-  const { profile, config, workouts, measurements, physique } = useData();
+  const { profile, config, workouts, measurements, physique, restLogs } = useData();
   const [editOpen, setEditOpen] = useState(false);
 
   const derived = useMemo(() => {
@@ -96,11 +124,18 @@ export function Dashboard() {
     const state = programState(profile, config.program);
     const rr = ryanReynoldsProgress(workouts, measurements, physique, profile, config);
     const ms = sortedMeasurements(measurements);
-    return { state, rr, ms };
-  }, [profile, config, workouts, measurements, physique]);
+    const streak = workoutStreak(workouts, restLogs);
+    return { state, rr, ms, streak };
+  }, [profile, config, workouts, measurements, physique, restLogs]);
 
   if (!profile || !config || !derived) return null;
-  const { state, rr, ms } = derived;
+  const { state, rr, ms, streak } = derived;
+
+  const streakHint = streak.lastDate
+    ? streak.current > 0
+      ? `best ${streak.longest} · ${streak.isActiveToday ? 'trained today' : `${streak.daysSinceLast}d ago`}`
+      : `broken · last ${streak.daysSinceLast}d ago`
+    : 'log a workout to start';
 
   const startW = ms[0]?.weight ?? profile.currentWeight;
   const curW = ms.at(-1)?.weight ?? profile.currentWeight;
@@ -123,20 +158,19 @@ export function Dashboard() {
         }
       />
 
-      {/* Hero — Ryan Reynolds Progress % (Section 12) */}
+      {/* Hero — My Progress % (Section 12) */}
       <Card className="mb-6 overflow-hidden">
         <div className="grid gap-6 lg:grid-cols-[auto,1fr]">
           <div className="flex items-center gap-6">
             <Ring value={rr.total} size={148}>
               <div>
                 <div className="text-3xl font-extrabold tabular-nums text-fg">{Math.round(rr.total)}%</div>
-                <div className="text-[10px] font-semibold uppercase tracking-widest text-accent-soft">RR Score</div>
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-accent-soft">Score</div>
               </div>
             </Ring>
             <div className="hidden sm:block">
               <p className="flex items-center gap-2 text-sm font-semibold text-fg">
-                <IconFlame className="text-accent-soft" width={18} height={18} />
-                Ryan Reynolds Progress
+                My Progress
               </p>
               <p className="mt-1 max-w-xs text-xs leading-relaxed text-fg-faint">
                 A single composite score: 40% body-fat reduction, 30% strength gains, 30% physique
@@ -158,7 +192,8 @@ export function Dashboard() {
       </Card>
 
       {/* Program state (Section 1) */}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <StreakTile streak={streak} hint={streakHint} />
         <StatTile label="Days Completed" value={state.daysCompleted} unit={`/ ${state.totalDays}`} icon={<IconCalendar width={18} height={18} />} />
         <StatTile label="Days Remaining" value={state.daysRemaining} icon={<IconCalendar width={18} height={18} />} hint={`ends ${fmtDateFull(profile.targetDate)}`} />
         <StatTile label="Timeline Progress" value={`${Math.round(state.progressPct)}%`} icon={<IconTrend width={18} height={18} />} hint={`week ${state.currentWeek} of ${state.totalWeeks}`} />

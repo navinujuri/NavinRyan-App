@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Layout } from './components/layout/Layout';
 import { useHashRoute } from './lib/useHashRoute';
 import { useData } from './state/DataContext';
-import { useAuth } from './state/AuthContext';
-import { programState, ryanReynoldsProgress } from './lib/calculations';
-import { IconFlame, IconLogout, IconRefresh } from './components/ui/icons';
+import { programState, workoutStreak } from './lib/calculations';
+import { IconFlame, IconRefresh } from './components/ui/icons';
 import { Pill } from './components/ui/primitives';
-import { AccountModal } from './components/AccountModal';
+import { Flame } from './components/ui/Flame';
+import { NAV_ITEMS } from './navItems';
 
 import { Dashboard } from './pages/Dashboard';
 import { Workouts } from './pages/Workouts';
@@ -67,63 +67,44 @@ const PAGES: Record<RouteId, () => JSX.Element | null> = {
 export function App() {
   const [route, navigate] = useHashRoute();
   const data = useData();
-  const { logout, user } = useAuth();
-  const [accountOpen, setAccountOpen] = useState(false);
 
   const header = useMemo(() => {
     if (!data.config || !data.profile) return null;
     const state = programState(data.profile, data.config.program);
-    const rr = ryanReynoldsProgress(
-      data.workouts,
-      data.measurements,
-      data.physique,
-      data.profile,
-      data.config,
-    );
-    return { state, rr };
-  }, [data.config, data.profile, data.workouts, data.measurements, data.physique]);
+    const streak = workoutStreak(data.workouts, data.restLogs);
+    return { state, streak };
+  }, [data.config, data.profile, data.workouts, data.restLogs]);
 
   if (data.loading) return <LoadingScreen />;
   if (data.error) return <ErrorScreen message={data.error} onRetry={data.reload} />;
 
   const Page = PAGES[route];
+  const pageTitle = NAV_ITEMS.find((n) => n.id === route)?.label ?? '';
 
   return (
     <Layout
       active={route}
       onNavigate={navigate}
+      streakCount={header ? header.streak.current : 0}
+      headerLeft={
+        pageTitle && <h2 className="truncate text-sm font-semibold text-fg-muted">{pageTitle}</h2>
+      }
       headerRight={
         header && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            {header.streak.current > 0 && (
+              <Pill tone="accent">
+                <Flame size={15} embers={false} /> {header.streak.current}-session streak
+              </Pill>
+            )}
             <Pill tone="default">
               Week {header.state.currentWeek}/{header.state.totalWeeks} · {header.state.phase}
             </Pill>
-            <Pill tone="accent">
-              <IconFlame width={13} height={13} />
-              RR Progress {Math.round(header.rr.total)}%
-            </Pill>
-            {user && (
-              <button
-                onClick={() => setAccountOpen(true)}
-                title="Account settings"
-                className="rounded-full border border-hair bg-ink-800 px-2.5 py-1 text-xs font-medium text-fg-muted transition hover:border-hair2 hover:text-fg"
-              >
-                {user.displayName}
-              </button>
-            )}
-            <button
-              onClick={logout}
-              title="Sign out"
-              className="rounded-lg border border-hair bg-ink-800 p-2 text-fg-faint transition hover:border-bad/40 hover:text-bad"
-            >
-              <IconLogout width={15} height={15} />
-            </button>
           </div>
         )
       }
     >
       <Page />
-      <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} />
     </Layout>
   );
 }

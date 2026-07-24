@@ -1,16 +1,21 @@
 import { useState, type ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import type { RouteId } from '../../navItems';
-import { IconFlame, IconMenu } from '../ui/icons';
+import { Flame } from '../ui/Flame';
+import { IconMenu } from '../ui/icons';
 
 export function Layout({
   active,
   onNavigate,
+  streakCount = 0,
+  headerLeft,
   headerRight,
   children,
 }: {
   active: RouteId;
   onNavigate: (id: RouteId) => void;
+  streakCount?: number;
+  headerLeft?: ReactNode;
   headerRight?: ReactNode;
   children: ReactNode;
 }) {
@@ -41,15 +46,24 @@ export function Layout({
             <IconMenu />
           </button>
           <div className="flex items-center gap-2">
-            <IconFlame className="text-accent-soft" width={18} height={18} />
             <span className="text-sm font-bold">Physique Tracker</span>
           </div>
-          <div className="w-9" />
+          {streakCount > 0 ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-2 py-1 text-xs font-semibold text-accent-soft"
+              title={`${streakCount}-session streak`}
+            >
+              <Flame size={14} embers={false} /> {streakCount}
+            </span>
+          ) : (
+            <div className="w-9" />
+          )}
         </header>
 
         {/* Desktop header strip */}
-        {headerRight && (
-          <div className="sticky top-0 z-10 hidden items-center justify-end border-b border-hair bg-ink-950/60 px-8 py-3 backdrop-blur lg:flex">
+        {(headerLeft || headerRight) && (
+          <div className="sticky top-0 z-10 hidden items-center justify-between gap-4 border-b border-hair bg-ink-950/60 px-8 py-3 backdrop-blur lg:flex">
+            <div className="min-w-0">{headerLeft}</div>
             {headerRight}
           </div>
         )}

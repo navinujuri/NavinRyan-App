@@ -3,7 +3,8 @@ import crypto from 'node:crypto';
 import { getStore } from '../storage/index.js';
 import { config } from '../config.js';
 import { hashPassword, verifyPassword, signJwt } from '../middleware/auth.js';
-import { seedTemplateProgram } from '../services/programs.js';
+import { importProgram, seedTemplateProgram } from '../services/programs.js';
+import { PHASE0_TEMPLATE } from '../domain/phase0.js';
 
 export const authRouter = express.Router();
 
@@ -36,10 +37,18 @@ async function seedNewUser(store, userId, displayName) {
     goalBodyFat: 0,
     units: 'metric',
   });
-  // Give every new account the Ryan Reynolds template as an editable starting
-  // program (slug exercise ids on this first program — see services/programs).
-  const programId = await seedTemplateProgram(store, userId, { startDate, targetDate });
-  await store.update('users', { id: userId }, { activeProgramId: programId });
+  // New accounts get BOTH programs: the beginner "Phase 0" on-ramp (order 0) and
+  // the full Phase 1 program (order 1). Phase 0 is imported first with
+  // activate:true, so it becomes the active/default program (and sets
+  // activeProgramId); Phase 1 is seeded inactive as the next phase to graduate to.
+  await importProgram(store, userId, PHASE0_TEMPLATE, { activate: true });
+  await seedTemplateProgram(store, userId, {
+    slugExerciseIds: false,
+    isActive: false,
+    order: 1,
+    startDate,
+    targetDate,
+  });
 }
 
 // POST /api/auth/register  { email, password, name }

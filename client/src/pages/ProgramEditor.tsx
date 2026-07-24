@@ -507,8 +507,8 @@ function NewPhaseMenu({
       {open && (
         <div role="menu" className="absolute left-0 z-30 mt-1.5 w-64 animate-fade-in rounded-xl border border-hair2 bg-ink-850 p-1.5 shadow-card">
           <Item label="Blank phase" hint="Start from scratch" icon={<IconPlus width={16} height={16} />} onClick={onBlank} />
-          <Item label="Copy RR template" hint="Phase 1 — the full RR program" icon={<IconCopy width={16} height={16} />} onClick={onCloneRR} />
-          <Item label="Copy Phase 0 template" hint="8-week beginner on-ramp" icon={<IconCopy width={16} height={16} />} onClick={onClonePhase0} />
+          <Item label="Copy RR Phase 1 template" hint="The full 16-week program" icon={<IconCopy width={16} height={16} />} onClick={onCloneRR} />
+          <Item label="Copy RR Phase 0 template" hint="8-week beginner on-ramp" icon={<IconCopy width={16} height={16} />} onClick={onClonePhase0} />
           <Item label="Import from JSON…" hint="Paste a phase definition" icon={<IconEdit width={16} height={16} />} onClick={onImport} />
         </div>
       )}
